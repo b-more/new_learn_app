@@ -105,7 +105,7 @@
                             // Handle success (status code 200 and success flag is true)
                             document.getElementById('lessons_details').classList.remove("hidden");
                             document.getElementById('total_lessons').innerText = data.total_lessons;
-                            document.getElementById('lesson_btn').href = '/coursenpm run/lessons?b='+`${buttonId}`;
+                            document.getElementById('lesson_btn').href = '/course/lessons?b='+`${buttonId}`;
                         } else {
                             throw new Error('Response success flag is false');
                         }
