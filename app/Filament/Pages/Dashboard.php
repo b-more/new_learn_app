@@ -14,6 +14,11 @@ class Dashboard extends Page
 
     protected static string $view = 'filament.pages.dashboard';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public function getSubheading(): string
     {
         return "Anti-Money Laundering | Transaction Monitoring | KYC Scanning [User Training]";
