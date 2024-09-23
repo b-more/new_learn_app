@@ -315,18 +315,6 @@ class UserResource extends Resource
                         return Branch::where('id', $record->branch_id)->first()->name ?? "";
                     })
                     ->label('Branch Name'),
-                // Tables\Columns\ToggleColumn::make('str_notification')->sortable()->searchable()
-                //     ->label('STR Notify')
-                //     ->onColor('success')
-                //     ->offColor('danger'),
-                // Tables\Columns\ToggleColumn::make('ctr_notification')->sortable()->searchable()
-                //     ->label('CTR Notify')
-                //     ->onColor('success')
-                //     ->offColor('danger'),
-                // Tables\Columns\ToggleColumn::make('compliance_notification')->sortable()->searchable()
-                //     ->label('Non-Compliance Notify')
-                //     ->onColor('success')
-                //     ->offColor('danger'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created/Updated At')
                     ->dateTime()
