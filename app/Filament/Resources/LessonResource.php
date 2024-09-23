@@ -29,6 +29,7 @@ class LessonResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('module_id')
+                    ->options(Module::all()->pluck('title','id')->toArray())
                     ->required(),
                 Forms\Components\TextInput::make('title')
                     ->required(),
@@ -49,7 +50,9 @@ class LessonResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('module_id')
-                    ->numeric()
+                    ->formatStateUsing(function ($record){
+                        return Module::where("id", $record->module_id)->first()->title ?? "";
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable(),

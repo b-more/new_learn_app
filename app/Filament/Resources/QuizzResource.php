@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\QuizzResource\Pages;
 use App\Filament\Resources\QuizzResource\RelationManagers;
+use App\Models\Lesson;
 use App\Models\Quizz;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -27,9 +28,9 @@ class QuizzResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('lesson_id')
+                Forms\Components\Select::make('lesson_id')
                     ->required()
-                    ->numeric(),
+                    ->options(Lesson::all()->pluck('title','id')->toArray()),
                 Forms\Components\Textarea::make('question')
                     ->required()
                     ->columnSpanFull(),
@@ -59,7 +60,9 @@ class QuizzResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('lesson_id')
-                    ->numeric()
+                    ->formatStateUsing(function ($record){
+                        return Lesson::where("id", $record->lesson_id)->first()->title ?? "";
+                    })
                     ->sortable(),
                 Tables\Columns\ImageColumn::make('question_image'),
                 Tables\Columns\TextColumn::make('correct_answer')
