@@ -27,7 +27,7 @@ class PermissionResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return checkReadPermissionPermission();
+        return false;
     }
 
     public static function form(Form $form): Form

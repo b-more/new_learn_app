@@ -48,7 +48,8 @@ class RoleResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return checkReadRolePermission();
+        // return checkReadRolePermission();
+        return false;
     }
 
     public static function form(Form $form): Form
