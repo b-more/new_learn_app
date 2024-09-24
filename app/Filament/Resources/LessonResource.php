@@ -29,18 +29,36 @@ class LessonResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('module_id')
+                    ->label('Module')
                     ->options(Module::all()->pluck('title','id')->toArray())
+                    ->columnSpanFull()
                     ->required(),
                 Forms\Components\TextInput::make('title')
+                    ->columnSpanFull()
                     ->required(),
                 Forms\Components\Textarea::make('description')
                     ->required()
                     ->columnSpanFull(),
-                Forms\Components\TextInput::make('video_url')
-                    ->required(),
                 Forms\Components\TextInput::make('video_length')
                     ->required(),
-                Forms\Components\TextInput::make('video_thumbnail')
+                Forms\Components\FileUpload::make('video_url')
+                        ->label('video')
+                        ->directory('lessons')
+                        ->required()
+                        ->imageEditor()
+                        ->imageEditorAspectRatios([
+                            '5:4'
+                        ])
+                        ->columnSpanFull()
+                    ->required(),
+                Forms\Components\FileUpload::make('video_thumbnail')
+                    ->directory('thumbnail')
+                    ->required()
+                    ->imageEditor()
+                    ->imageEditorAspectRatios([
+                        '5:4'
+                    ])
+                    ->columnSpanFull()
                     ->required(),
             ]);
     }

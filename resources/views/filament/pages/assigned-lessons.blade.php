@@ -114,9 +114,9 @@
                          data-video-thumbnail="{{ $lesson->video_thumbnail }}"
                     >
 
-                        <div class="w-full grid grid-cols-4 items-center p-1 relative">
+                        <div class="w-full grid grid-cols-4 items-center p-1 relative mb-3">
                             <div class="w-[50px] h-[50px] col-span-1">
-                                <img src="{{ $lesson->video_thumbnail }}" class="w-[50px] h-[50px] object-cover">
+                                <img src="{{ '/storage/'.$lesson->video_thumbnail }}" class="w-[50px] h-[50px] object-cover">
                             </div>
                             <div class="text-xs col-span-3">{{ $lesson->title }}</div>
                             <div class="absolute -top-4 -left-4">
@@ -159,6 +159,10 @@
                     const urlObject = new URL(currentURL);
                     const baseURL = `${urlObject.protocol}//${urlObject.host}`;
 
+                    console.log(lessonVideoThumbnail);
+                    console.log(lessonVideoUrl);
+                    console.log(baseURL)
+
                     videoShow.insertAdjacentHTML("afterbegin", `
                         <video
                                 id="my-video"
@@ -168,10 +172,10 @@
                                 width="640"
                                 height="264"
                                 data-setup="{}"
-                                poster="${baseURL + lessonVideoThumbnail}"
+                                poster="${baseURL +'/storage/'+ lessonVideoThumbnail}"
                                 class="border-2 border-green-800"
                             >
-                                <source id="source" type="video/mp4"  src="${baseURL+lessonVideoUrl}"/>
+                                <source id="source" type="video/mp4"  src="${baseURL+'/storage/'+lessonVideoUrl}"/>
                                 <p class="vjs-no-js">
                                     To view this video please enable JavaScript, and consider upgrading to a
                                     web browser that

@@ -28,8 +28,17 @@ class ModuleResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('title')
+                    ->columnSpanFull()
                     ->required(),
-                Forms\Components\TextInput::make('icon'),
+                Forms\Components\FileUpload::make('icon')
+                    ->image()
+                    ->directory('thumbnail')
+                    ->required()
+                    ->imageEditor()
+                    ->imageEditorAspectRatios([
+                        '5:4'
+                    ])
+                    ->columnSpanFull(),
                 Forms\Components\Textarea::make('description')
                     ->required()
                     ->columnSpanFull(),

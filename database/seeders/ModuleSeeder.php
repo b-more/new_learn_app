@@ -16,12 +16,12 @@ class ModuleSeeder extends Seeder
         DB::table("modules")->insert([
             [
                 "title" => "Introduction to Anti-Money Laundering & Transaction Monitoring System",
-                "icon" => "/thumbnail/introduction_to_aml.png",
+                "icon" => "/storage/thumbnail/introduction_to_aml.png",
                 "description" => "Introduction to Anti-Money Laundering & Transaction Monitoring System"
             ],
             [
                 "title" => "System User Management",
-                "icon" => "/thumbnail/user_management.png",
+                "icon" => "/storage/thumbnail/user_management.png",
                 "description" => "Configuring and management of all the system users"
             ]
         ]);

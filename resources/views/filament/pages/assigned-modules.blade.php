@@ -69,8 +69,8 @@
 
                     document.getElementById('thumbnail').innerHTML = "";
                     document.getElementById('title').innerText = `${buttonTitle}`;
-                    document.getElementById('thumbnail').src = `${buttonImageUrl}`;
-                    document.getElementById('lessons_link').href = '/course/lessons?b='+`${buttonId}`;
+                    document.getElementById('thumbnail').src = '/storage/'+`${buttonImageUrl}`;
+                    document.getElementById('lessons_link').href = '/course/assigned-lessons?b='+`${buttonId}`;
                     document.getElementById('description').innerText = `${buttonDescription}`;
 
                     //code to query module summaries
@@ -105,7 +105,7 @@
                             // Handle success (status code 200 and success flag is true)
                             document.getElementById('lessons_details').classList.remove("hidden");
                             document.getElementById('total_lessons').innerText = data.total_lessons;
-                            document.getElementById('lesson_btn').href = '/course/lessons?b='+`${buttonId}`;
+                            document.getElementById('lesson_btn').href = '/course/assigned-lessons?b='+`${buttonId}`;
                         } else {
                             throw new Error('Response success flag is false');
                         }
