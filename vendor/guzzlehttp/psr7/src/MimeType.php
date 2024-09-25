@@ -1110,7 +1110,7 @@ final class MimeType
         'wdb' => 'application/vnd.ms-works',
         'wdp' => 'image/vnd.ms-photo',
         'weba' => 'audio/webm',
-        'webapp' => 'application/x-web-sub-manifest+json',
+        'webapp' => 'application/x-web-app-manifest+json',
         'webm' => 'video/webm',
         'webmanifest' => 'application/manifest+json',
         'webp' => 'image/webp',

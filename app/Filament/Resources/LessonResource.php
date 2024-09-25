@@ -21,6 +21,11 @@ class LessonResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return checkReadLessonPermission();
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -67,6 +72,7 @@ class LessonResource extends Resource
                     ->label('Lesson Documents')
                     ->directory('lessons/documents')
                     ->multiple() // Allow multiple uploads
+                    ->preserveFilenames()
                     ->columnSpanFull(),
 
             ]);
@@ -117,7 +123,8 @@ class LessonResource extends Resource
                         }
                         return 'No Documents';
                     })
-                    ->html(),
+                    ->html()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

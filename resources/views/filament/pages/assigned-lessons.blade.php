@@ -13,13 +13,28 @@
                         <div id="video_show" class="mt-8">
                         </div>
 
-                        <div id="video_title" class="mt-6 text-sm font-semibold">
+                        <div id="video_title" class="mt-6 text-md font-semibold">
                         </div>
                         <div id="video_description" class="mb-4 text-xs font-medium">
                         </div>
+                        <hr class="mb-10">
 
-                        <div id="lessonDownloads" class="mb-4 text-xs font-medium">
-
+                        <div class="mb-4 text-xs font-medium">
+                            <div class="text-md font-bold">Downloadable Files</div>
+                            <a id="lessonDownloadLink0" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink1" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink2" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink3" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink4" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink5" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink6" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink7" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink8" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink9" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink10" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink11" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink12" download class="text-green-800 underline"></a><br/>
+                            <a id="lessonDownloadLink13" download class="text-green-800 underline"></a><br/>
                         </div>
 
                     </div>
@@ -138,9 +153,26 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             const lessons = document.querySelectorAll('.lesson-button');
+            // Create a link element for each document
+
             const videoShow = document.getElementById("video_show");
             const lessonDownloads = document.getElementById("lesson_downloads");
             const form = document.getElementById("quiz_form");
+
+            const lessonDownloadLink0 = document.getElementById('lessonDownloadLink0');
+            const lessonDownloadLink1 = document.getElementById('lessonDownloadLink1');
+            const lessonDownloadLink2 = document.getElementById('lessonDownloadLink2');
+            const lessonDownloadLink3 = document.getElementById('lessonDownloadLink3');
+            const lessonDownloadLink4 = document.getElementById('lessonDownloadLink4');
+            const lessonDownloadLink5 = document.getElementById('lessonDownloadLink5');
+            const lessonDownloadLink6 = document.getElementById('lessonDownloadLink6');
+            const lessonDownloadLink7 = document.getElementById('lessonDownloadLink7');
+            const lessonDownloadLink8 = document.getElementById('lessonDownloadLink8');
+            const lessonDownloadLink9 = document.getElementById('lessonDownloadLink9');
+            const lessonDownloadLink10 = document.getElementById('lessonDownloadLink10');
+            const lessonDownloadLink11 = document.getElementById('lessonDownloadLink11');
+            const lessonDownloadLink12 = document.getElementById('lessonDownloadLink12');
+            const lessonDownloadLink13 = document.getElementById('lessonDownloadLink13');
 
             document.querySelectorAll('.lesson-button').forEach(lesson => {
                 lesson.addEventListener('click', function() {
@@ -168,7 +200,8 @@
                     const baseURL = `${urlObject.protocol}//${urlObject.host}`;
 
 
-                    videoShow.insertAdjacentHTML("afterbegin", `
+                    if(lessonVideoUrl !== "" || lessonVideoUrl !== null) {
+                        videoShow.insertAdjacentHTML("afterbegin", `
                         <video
                                 id="my-video"
                                 class="video-js"
@@ -177,7 +210,7 @@
                                 width="640"
                                 height="264"
                                 data-setup="{}"
-                                poster="${baseURL +'/storage/'+ lessonVideoThumbnail}"
+                                poster="${baseURL + '/storage/' + lessonVideoThumbnail}"
                                 class="border-2 border-green-800"
                             >
                                 <source id="source" type="video/mp4"  src="${lessonVideoUrl}"/>
@@ -190,6 +223,7 @@
                                 </p>
                             </video>
                     `)
+                    }
 
                     document.getElementById("video_title").innerText = this.getAttribute('data-title');
                     document.getElementById("video_description").innerText = this.getAttribute('data-description');
@@ -214,16 +248,68 @@
                     const lessonDownloads = document.getElementById("lesson_downloads");
 
                     if (Array.isArray(lessonDocuments) && lessonDocuments.length > 0) {
-                        lessonDocuments.forEach(document => {
+                        console.log(lessonDocuments.length);
+                        lessonDocuments.forEach((document,index) => {
+                            // Create a unique ID for each download link using the index
                             const fileUrl = `${baseURL}/storage/${document.path}`;
                             const fileName = document.name;
 
-                            // Create a link element for each document
-                            const downloadLink = document.createElement('a');
-                            downloadLink.href = fileUrl;
-                            downloadLink.download = fileName; // Optional, to suggest a filename when downloading
-                            downloadLink.className = 'text-green-800 underline'; // Apply your styles
-                            downloadLink.innerText = fileName; // Set link text
+                            if(index === 0) {
+                                lessonDownloadLink0.href = fileUrl;
+                                lessonDownloadLink0.download = fileName;
+                                lessonDownloadLink0.innerText = fileName;
+                            }else if(index === 1)
+                            {
+                                lessonDownloadLink1.href = fileUrl;
+                                lessonDownloadLink1.download = fileName;
+                                lessonDownloadLink1.innerText = fileName;
+                            }else if(index === 2)
+                            {
+                                lessonDownloadLink2.href = fileUrl;
+                                lessonDownloadLink2.download = fileName;
+                                lessonDownloadLink2.innerText = fileName;
+                            }else if(index === 3)
+                            {
+                                lessonDownloadLink3.href = fileUrl;
+                                lessonDownloadLink3.download = fileName;
+                                lessonDownloadLink3.innerText = fileName;
+                            }else if(index === 4)
+                            {
+                                lessonDownloadLink4.href = fileUrl;
+                                lessonDownloadLink4.download = fileName;
+                                lessonDownloadLink4.innerText = fileName;
+                            }else if(index === 5)
+                            {
+                                lessonDownloadLink5.href = fileUrl;
+                                lessonDownloadLink5.download = fileName;
+                                lessonDownloadLink5.innerText = fileName;
+                            }else if(index === 6)
+                            {
+                                lessonDownloadLink6.href = fileUrl;
+                                lessonDownloadLink6.download = fileName;
+                                lessonDownloadLink6.innerText = fileName;
+                            }else if(index === 7)
+                            {
+                                lessonDownloadLink7.href = fileUrl;
+                                lessonDownloadLink7.download = fileName;
+                                lessonDownloadLink7.innerText = fileName;
+                            }else if(index === 8)
+                            {
+                                lessonDownloadLink8.href = fileUrl;
+                                lessonDownloadLink8.download = fileName;
+                                lessonDownloadLink8.innerText = fileName;
+                            }else if(index === 9)
+                            {
+                                lessonDownloadLink9.href = fileUrl;
+                                lessonDownloadLink9.download = fileName;
+                                lessonDownloadLink9.innerText = fileName;
+                            }else if(index === 10)
+                            {
+                                lessonDownloadLink10.href = fileUrl;
+                                lessonDownloadLink10.download = fileName;
+                                lessonDownloadLink10.innerText = fileName;
+                            }
+
 
                             //
                         });
