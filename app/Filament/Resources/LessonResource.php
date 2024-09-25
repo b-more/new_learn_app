@@ -26,17 +26,21 @@ class LessonResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('module_id')
+
                     ->options(Module::all()->pluck('title', 'id')->toArray())
                     ->required()
                     ->label('Module Name'),
                 Forms\Components\TextInput::make('title')
                     ->required()
                     ->label('Lesson Title'),
+
                 Forms\Components\Textarea::make('description')
                     ->required()
                     ->label('Lesson Description')
                     ->columnSpanFull(),
+
                 Forms\Components\TextInput::make('video_length'),
+
                 Forms\Components\FileUpload::make('video_thumbnail')
                     ->label('Lesson Thumbnail/Poster')
                     ->directory('thumbnail')
@@ -46,6 +50,7 @@ class LessonResource extends Resource
                     ->imageEditorAspectRatios([
                         '5:4'
                     ])
+
                     ->columnSpanFull(),
                 Forms\Components\FileUpload::make('video_url')
                         ->label('video')
