@@ -10,13 +10,18 @@ class Lesson extends Model
     use HasFactory;
 
     protected $fillable = [
-        "module_id","title","description","video_url","video_length","video_thumbnail"
+        "module_id","title","description","video_url","video_length","video_thumbnail","documents"
     ];
 
      // Accessor to return the full video URL
      public function getVideoUrlAttribute($value)
      {
          // If video is stored in public/lessons, return the full path
-         return asset('storage/lessons/' . $value);
+         return asset('storage/' . $value);
      }
+
+    protected $casts = [
+        'documents' => 'array', // Cast documents as an array
+    ];
+
 }

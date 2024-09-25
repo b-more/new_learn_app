@@ -36,28 +36,34 @@ class LessonResource extends Resource
                     ->required()
                     ->label('Lesson Description')
                     ->columnSpanFull(),
-                Forms\Components\TextInput::make('video_length')
-                    ->required(),
+                Forms\Components\TextInput::make('video_length'),
+                Forms\Components\FileUpload::make('video_thumbnail')
+                    ->label('Lesson Thumbnail/Poster')
+                    ->directory('thumbnail')
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp', 'image/bmp']) // Accept only images
+                    ->required()
+                    ->imageEditor()
+                    ->imageEditorAspectRatios([
+                        '5:4'
+                    ])
+                    ->columnSpanFull(),
                 Forms\Components\FileUpload::make('video_url')
                         ->label('video')
                         ->directory('lessons')
-                        ->required()
                     ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mpeg', 'video/quicktime'])  // Allowable formats
                     ->maxSize(51200) // 50MB maximum size
                         ->imageEditor()
                         ->imageEditorAspectRatios([
                             '5:4'
                         ])
-                        ->columnSpanFull()
-                    ->required(),
-                Forms\Components\FileUpload::make('video_thumbnail')
-                    ->directory('thumbnail')
-                    ->required()
-                    ->imageEditor()
-                    ->imageEditorAspectRatios([
-                        '5:4'
-                    ])
-                    ->columnSpanFull()
+                        ->columnSpanFull(),
+                // Add FileUpload for documents
+                Forms\Components\FileUpload::make('documents')
+                    ->label('Lesson Documents')
+                    ->directory('lessons/documents')
+                    ->multiple() // Allow multiple uploads
+                    ->columnSpanFull(),
+
             ]);
     }
 
@@ -95,6 +101,18 @@ class LessonResource extends Resource
                     ->label('Thumbnail')
                     ->disk('public')  // Specify the disk where the file is stored
                     ->visible(fn($record) => $record->video_thumbnail ?? ""),  // Ensure it's only displayed if a thumbnail exists
+                // Display documents as download links
+                Tables\Columns\TextColumn::make('documents')
+                    ->label('Documents')
+                    ->formatStateUsing(function ($record) {
+                        if ($record->documents) {
+                            return collect($record->documents)->map(function ($document) {
+                                return "<a href='" . asset('storage/' . $document) . "' download>" . basename($document) . "</a>";
+                            })->implode(', ');
+                        }
+                        return 'No Documents';
+                    })
+                    ->html(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

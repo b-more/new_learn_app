@@ -29,14 +29,22 @@ class QuizzResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('lesson_id')
+                    ->unique(ignoreRecord: true)
+                    ->label('Lesson')
                     ->required()
                     ->options(Lesson::all()->pluck('title','id')->toArray()),
                 Forms\Components\Textarea::make('question')
                     ->required()
                     ->columnSpanFull(),
-                Forms\Components\FileUpload::make('question_image')
-                    ->image(),
-                Forms\Components\TextInput::make('correct_answer')
+//                Forms\Components\FileUpload::make('question_image')
+//                    ->image(),
+                Forms\Components\Select::make('correct_answer')
+                    ->options([
+                        "A" => "A",
+                        "B" => "B",
+                        "C" => "C",
+                        "D" => "D"
+                    ])
                     ->required(),
                 Forms\Components\Textarea::make('answer_option_a')
                     ->required()
@@ -60,11 +68,11 @@ class QuizzResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('lesson_id')
+                    ->label('Lesson')
                     ->formatStateUsing(function ($record){
                         return Lesson::where("id", $record->lesson_id)->first()->title ?? "";
                     })
                     ->sortable(),
-                Tables\Columns\ImageColumn::make('question_image'),
                 Tables\Columns\TextColumn::make('correct_answer')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('duration')
@@ -82,7 +90,8 @@ class QuizzResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->successRedirectUrl('quizzs'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
