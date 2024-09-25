@@ -2,19 +2,22 @@
 
 namespace App\Filament\Resources;
 
+use App\Exports\QuizAttemptsExport;
 use App\Filament\Resources\QuizScoreResource\Pages;
 use App\Filament\Resources\QuizScoreResource\RelationManagers;
 use App\Models\AttemptAnswer;
-use App\Models\QuizScore;
 use App\Models\User;
 use Faker\Provider\Text;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Maatwebsite\Excel\Facades\Excel;
 
 class QuizScoreResource extends Resource
 {
@@ -81,7 +84,14 @@ class QuizScoreResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    //Tables\Actions\DeleteBulkAction::make(),
+                    BulkAction::make('attempts')
+                        ->label('Download All Attempts')
+                        ->icon('heroicon-m-cloud-arrow-down')
+                        ->action(function (Collection $records){
+                            $attempts_records = $records;
+
+                            return Excel::download(new QuizAttemptsExport($attempts_records), 'quiz_attempts_'.now().'.csv');
+                        })
                 ]),
             ]);
     }

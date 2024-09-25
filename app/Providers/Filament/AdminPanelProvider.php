@@ -26,6 +26,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('course')
+            ->darkMode(false)
             ->login()
             ->colors([
                 'primary' => "#209F59",

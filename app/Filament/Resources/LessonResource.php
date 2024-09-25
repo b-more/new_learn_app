@@ -62,6 +62,7 @@ class LessonResource extends Resource
                     ->label('Lesson Documents')
                     ->directory('lessons/documents')
                     ->multiple() // Allow multiple uploads
+                    ->preserveFilenames()
                     ->columnSpanFull(),
 
             ]);
@@ -112,7 +113,8 @@ class LessonResource extends Resource
                         }
                         return 'No Documents';
                     })
-                    ->html(),
+                    ->html()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
