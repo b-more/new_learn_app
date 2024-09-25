@@ -27,25 +27,65 @@ class UserSeeder extends Seeder
 
             ],
             [
-                'name' => 'Dennis Zitha',
-                'email' => 'dennis@ontech.co.zm',
+                'name' => 'Blessmore Mulenga',
+                'email' => 'blessmore@ontech.co.zm',
                 'password' => Hash::make('Admin.1234'),
                 'role_id' => 1,
-                'user_id' => 1,
+                'user_id' => 2,
                 'branch_id' => 1,
                 "created_at" => now(),
                 "updated_at" => now()
             ],
             [
-                'name' => 'Blessmore Mulenga',
-                'email' => 'blessmore@ontech.co.zm',
+                'name' => 'Nickson Mulila',
+                'email' => 'nickson.mulila@natsave.co.zm',
                 'password' => Hash::make('Admin.1234'),
                 'role_id' => 1,
-                'user_id' => 1,
+                'user_id' => 3,
                 'branch_id' => 1,
                 "created_at" => now(),
                 "updated_at" => now()
-            ]
+            ],
+            [
+                'name' => 'Chapwe Telebwe',
+                'email' => 'Chapwe.Telebwe@natsave.co.zm',
+                'password' => Hash::make('Admin.1234'),
+                'role_id' => 1,
+                'user_id' => 4,
+                'branch_id' => 1,
+                "created_at" => now(),
+                "updated_at" => now()
+            ],
+            [
+                'name' => 'Munune Mainza',
+                'email' => 'Munene.Mainza@natsave.co.zm',
+                'password' => Hash::make('Admin.1234'),
+                'role_id' => 2,
+                'user_id' => 5,
+                'branch_id' => 1,
+                "created_at" => now(),
+                "updated_at" => now()
+            ],
+            [
+                'name' => 'Niza Shakspuku',
+                'email' => 'Niza.Shakapuku@natsave.co.zm',
+                'password' => Hash::make('Admin.1234'),
+                'role_id' => 2,
+                'user_id' => 6,
+                'branch_id' => 1,
+                "created_at" => now(),
+                "updated_at" => now()
+            ],
+            [
+                'name' => 'Sepiso',
+                'email' => 'sepiso@natsave.co.zm',
+                'password' => Hash::make('Admin.1234'),
+                'role_id' => 2,
+                'user_id' => 6,
+                'branch_id' => 1,
+                "created_at" => now(),
+                "updated_at" => now()
+            ],
         ]);
     }
 }
