@@ -280,7 +280,12 @@ class UserResource extends Resource
                                     ->label("User Role")
                                     ->options(Role::all()->pluck('name','id')->toArray())
                                     ->required()
-                            ])
+                            ]),
+                        Forms\Components\Select::make('modules')
+                            ->relationship('modules', 'title')
+                            ->label('Assign Modules')
+                            ->multiple()
+                            ->required()
 
                     ])
             ]);

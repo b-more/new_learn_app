@@ -16,9 +16,10 @@ return new class extends Migration
             $table->unsignedBigInteger("module_id");
             $table->string("title");
             $table->text("description");
-            $table->string("video_url");
-            $table->string("video_length");
+            $table->string("video_url")->nullable();
+            $table->string("video_length")->nullable();
             $table->string("video_thumbnail");
+            $table->json('documents')->nullable(); // Store multiple document paths
             $table->timestamps();
         });
     }

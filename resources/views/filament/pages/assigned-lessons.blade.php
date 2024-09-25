@@ -17,6 +17,11 @@
                         </div>
                         <div id="video_description" class="mb-4 text-xs font-medium">
                         </div>
+
+                        <div id="lessonDownloads" class="mb-4 text-xs font-medium">
+
+                        </div>
+
                     </div>
                     <div class="step w-full" id="step2">
                         <form id="quiz_form" method="POST">
@@ -112,6 +117,7 @@
                          data-video-url="{{ $lesson->video_url }}"
                          data-video-length="{{ $lesson->video_length }}"
                          data-video-thumbnail="{{ $lesson->video_thumbnail }}"
+                         data-lesson-documents="{{ json_encode($lesson->documents) }}"
                     >
 
                         <div class="w-full grid grid-cols-4 items-center p-1 relative mb-3">
@@ -133,6 +139,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const lessons = document.querySelectorAll('.lesson-button');
             const videoShow = document.getElementById("video_show");
+            const lessonDownloads = document.getElementById("lesson_downloads");
             const form = document.getElementById("quiz_form");
 
             document.querySelectorAll('.lesson-button').forEach(lesson => {
@@ -154,14 +161,12 @@
                     const lessonVideoUrl = this.getAttribute('data-video-url');
                     const lessonVideoLength = this.getAttribute('data-video-length');
                     const lessonVideoThumbnail = this.getAttribute('data-video-thumbnail');
+                    const lessonDocumentsString = this.getAttribute('data-lesson-documents');
 
                     const currentURL = window.location.href;
                     const urlObject = new URL(currentURL);
                     const baseURL = `${urlObject.protocol}//${urlObject.host}`;
 
-                    console.log(lessonVideoThumbnail);
-                    console.log(lessonVideoUrl);
-                    console.log(baseURL)
 
                     videoShow.insertAdjacentHTML("afterbegin", `
                         <video
@@ -193,6 +198,49 @@
 
                     const selectedLesson = document.getElementById("selected_lesson");
                     selectedLesson.classList.remove("hidden");
+
+                    // Convert the string to an array
+                    const lessonDocumentsArray = JSON.parse(lessonDocumentsString);
+
+                    // Convert the array of paths to an array of objects
+                    const lessonDocuments = lessonDocumentsArray.map(documentPath => {
+                        return {
+                            path: documentPath,
+                            name: documentPath.split('/').pop() // Get the file name
+                        };
+                    });
+
+                    // Now your existing code can be modified to work with lessonDocuments
+                    const lessonDownloads = document.getElementById("lesson_downloads");
+
+                    if (Array.isArray(lessonDocuments) && lessonDocuments.length > 0) {
+                        lessonDocuments.forEach(document => {
+                            const fileUrl = `${baseURL}/storage/${document.path}`;
+                            const fileName = document.name;
+
+                            // Create a link element for each document
+                            const downloadLink = document.createElement('a');
+                            downloadLink.href = fileUrl;
+                            downloadLink.download = fileName; // Optional, to suggest a filename when downloading
+                            downloadLink.className = 'text-green-800 underline'; // Apply your styles
+                            downloadLink.innerText = fileName; // Set link text
+
+                            //
+                        });
+                    }
+
+                    // List downloadable documents
+
+                    // if (Array.isArray(lessonDocuments) && lessonDocuments.length > 0 ){
+                    //     lessonDocuments.forEach(document => {
+                    //         const fileUrl = `${baseURL}/storage/${document.path}`;
+                    //         const fileName = document.name;
+                    //
+                    //         //lessonDownloads.href = fileUrl;
+                    //         lessonDownloads.innerText = fileName;
+                    //
+                    //     });
+                    // }
 
                     //query the quiz
                     //code to query module summaries

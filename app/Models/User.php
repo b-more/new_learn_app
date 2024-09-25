@@ -26,6 +26,11 @@ class User extends Authenticatable
         'updated_by'
     ];
 
+    public function modules()
+    {
+        return $this->belongsToMany(Module::class);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *
