@@ -66,7 +66,8 @@ class ModuleResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->successRedirectUrl('modules'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

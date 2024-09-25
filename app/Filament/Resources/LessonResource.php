@@ -26,33 +26,24 @@ class LessonResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('module_id')
-<<<<<<< HEAD
-                    ->label('Module')
-                    ->options(Module::all()->pluck('title','id')->toArray())
-                    ->columnSpanFull()
-                    ->required(),
-                Forms\Components\TextInput::make('title')
-                    ->columnSpanFull()
-                    ->required(),
-=======
                     ->options(Module::all()->pluck('title', 'id')->toArray())
                     ->required()
                     ->label('Module Name'),
                 Forms\Components\TextInput::make('title')
                     ->required()
                     ->label('Lesson Title'),
->>>>>>> 45637dfe4862fd64b6f7f36aadaf08dc54c7afff
                 Forms\Components\Textarea::make('description')
                     ->required()
                     ->label('Lesson Description')
                     ->columnSpanFull(),
-<<<<<<< HEAD
                 Forms\Components\TextInput::make('video_length')
                     ->required(),
                 Forms\Components\FileUpload::make('video_url')
                         ->label('video')
                         ->directory('lessons')
                         ->required()
+                    ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mpeg', 'video/quicktime'])  // Allowable formats
+                    ->maxSize(51200) // 50MB maximum size
                         ->imageEditor()
                         ->imageEditorAspectRatios([
                             '5:4'
@@ -67,32 +58,6 @@ class LessonResource extends Resource
                         '5:4'
                     ])
                     ->columnSpanFull()
-=======
-
-                // FileUpload for Video File
-                Forms\Components\FileUpload::make('video_url')
-                    ->label('Upload Video')
-                    ->directory('lessons')  // Upload to public/lessons directory
-                    ->disk('public')
-                    ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mpeg', 'video/quicktime'])  // Allowable formats
-                    ->maxSize(51200) // 50MB maximum size
-                    ->required(),
-
-                Forms\Components\TextInput::make('video_length')
-                    ->postfix('mins')
-                    ->placeholder('05:24')
-                    ->required()
-                    ->label('Video Length'),
-
-                // FileUpload for Thumbnail
-                Forms\Components\FileUpload::make('video_thumbnail')
-                    ->label('Upload Thumbnail')
-                    ->directory('thumbnails')  // Upload to public/thumbnails directory
-                    ->disk('public')
-                    ->image()
-                    ->maxSize(1024) // 1MB maximum size
->>>>>>> 45637dfe4862fd64b6f7f36aadaf08dc54c7afff
-                    ->required(),
             ]);
     }
 
@@ -145,7 +110,8 @@ class LessonResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->successRedirectUrl('lessons'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

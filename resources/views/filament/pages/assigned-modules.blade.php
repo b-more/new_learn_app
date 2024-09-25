@@ -1,9 +1,13 @@
 <x-filament-panels::page>
     <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
     <div>
+        <div class="mb-10">
+            @livewire(\App\Livewire\StatsOverview::class)
+        </div>
         <div class="flex flex-row items-start h-screen w-full">
+
             <div id="modules" class="w-2/3 h-full overflow-y-scroll px-6">
-                @foreach(App\Models\Module::all() as $index => $module)
+                @foreach(auth()->user()->modules as $index => $module)
                     <button id="{{ $module->id }}" class="module-button px-6 py-3 bg-green-800 bg-opacity-5 rounded-lg flex flex-row items-center space-x-3 w-full mb-4"
                             data-title="{{ $module->title }}"
                             data-image-url="{{ $module->icon }}"

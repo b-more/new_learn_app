@@ -13,7 +13,16 @@ class EditQuizScore extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            //Actions\DeleteAction::make(),
         ];
     }
+
+    protected function getFormActions(): array
+    {
+        return [
+
+        ];
+    }
+
+    protected static ?string $title = 'Quiz Attempt Details';
 }
