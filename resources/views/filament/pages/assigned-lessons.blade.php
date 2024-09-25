@@ -175,7 +175,7 @@
                                 poster="${baseURL +'/storage/'+ lessonVideoThumbnail}"
                                 class="border-2 border-green-800"
                             >
-                                <source id="source" type="video/mp4"  src="${baseURL+'/storage/'+lessonVideoUrl}"/>
+                                <source id="source" type="video/mp4"  src="${lessonVideoUrl}"/>
                                 <p class="vjs-no-js">
                                     To view this video please enable JavaScript, and consider upgrading to a
                                     web browser that
