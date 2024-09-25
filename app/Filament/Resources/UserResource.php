@@ -102,6 +102,117 @@ function checkDeleteBranchPermission(): bool
     return false;
 }
 
+//Module
+function checkCreateModulePermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Module')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Module')->where('role_id', $user->role_id)->first()->create == 1 ?? false;
+    }
+    return false;
+}
+
+function checkReadModulePermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Module')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Module')->where('role_id', $user->role_id)->first()->read == 1 ?? false;
+    }
+    return false;
+}
+
+function checkUpdateModulePermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Module')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Module')->where('role_id', $user->role_id)->first()->update == 1 ?? false;
+    }
+    return false;
+}
+
+function checkDeleteModulePermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Module')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Module')->where('role_id', $user->role_id)->first()->delete == 1 ?? false;
+    }
+    return false;
+}
+
+//Lesson
+function checkCreateLessonPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->first()->create == 1 ?? false;
+    }
+    return false;
+}
+
+function checkReadLessonPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->first()->read == 1 ?? false;
+    }
+    return false;
+}
+
+function checkUpdateLessonPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->first()->update == 1 ?? false;
+    }
+    return false;
+}
+
+function checkDeleteLessonPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Lesson')->where('role_id', $user->role_id)->first()->delete == 1 ?? false;
+    }
+    return false;
+}
+
+//Quiz
+function checkCreateQuizPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->first()->create == 1 ?? false;
+    }
+    return false;
+}
+
+function checkReadQuizPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->first()->read == 1 ?? false;
+    }
+    return false;
+}
+
+function checkUpdateQuizPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->first()->update == 1 ?? false;
+    }
+    return false;
+}
+
+function checkDeleteQuizPermission(): bool
+{
+    $user = Auth::user();
+    if(Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'Quiz')->where('role_id', $user->role_id)->first()->delete == 1 ?? false;
+    }
+    return false;
+}
+
 
 
 //Permission
@@ -216,6 +327,7 @@ function checkDeleteUserPermission(): bool
     }
     return false;
 }
+
 
 
 

@@ -24,6 +24,11 @@ class QuizzResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return checkReadQuizPermission();
+    }
+
     public static function form(Form $form): Form
     {
         return $form
