@@ -61,7 +61,7 @@ class LessonResource extends Resource
                         ->label('video')
                         ->directory('lessons')
                     ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mpeg', 'video/quicktime'])  // Allowable formats
-                    ->maxSize(51200) // 50MB maximum size
+                    ->maxSize(102400) // 100MB in kilobytes (100 * 1024)
                         ->imageEditor()
                         ->imageEditorAspectRatios([
                             '5:4'
