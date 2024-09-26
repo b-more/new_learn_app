@@ -29,6 +29,11 @@ class QuizzResource extends Resource
         return checkReadQuizPermission();
     }
 
+    public static function getNavigationLabel(): string
+    {
+        return "Quiz";
+    }
+
     public static function form(Form $form): Form
     {
         return $form
