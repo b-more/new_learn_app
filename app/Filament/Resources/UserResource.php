@@ -216,7 +216,7 @@ function checkDeleteQuizPermission(): bool
 
 
 //Permission
-function checkCreatePermissionPermission(): bool
+function checkCreateQuizScorePermission(): bool
 {
     $user = Auth::user();
     if(Permission::where('module', 'Permission')->where('role_id', $user->role_id)->count() > 0){
@@ -225,29 +225,29 @@ function checkCreatePermissionPermission(): bool
     return false;
 }
 
-function checkReadPermissionPermission(): bool
+function checkReadQuizScorePermission(): bool
 {
     $user = Auth::user();
-    if(Permission::where('module', 'Permission')->where('role_id', $user->role_id)->count() > 0){
-        return Permission::where('module', 'Permission')->where('role_id', $user->role_id)->first()->read == 1 ?? false;
+    if(Permission::where('module', 'QuizScore')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'QuizScore')->where('role_id', $user->role_id)->first()->read == 1 ?? false;
     }
     return false;
 }
 
-function checkUpdatePermissionPermission(): bool
+function checkUpdateQuizScorePermission(): bool
 {
     $user = Auth::user();
-    if(Permission::where('module', 'Permission')->where('role_id', $user->role_id)->count() > 0){
-        return Permission::where('module', 'Permission')->where('role_id', $user->role_id)->first()->update == 1 ?? false;
+    if(Permission::where('module', 'QuizScore')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'QuizScore')->where('role_id', $user->role_id)->first()->update == 1 ?? false;
     }
     return false;
 }
 
-function checkDeletePermissionPermission(): bool
+function checkDeleteQuizScorePermission(): bool
 {
     $user = Auth::user();
-    if(Permission::where('module', 'Permission')->where('role_id', $user->role_id)->count() > 0){
-        return Permission::where('module', 'Permission')->where('role_id', $user->role_id)->first()->delete == 1 ?? false;
+    if(Permission::where('module', 'QuizScore')->where('role_id', $user->role_id)->count() > 0){
+        return Permission::where('module', 'QuizScore')->where('role_id', $user->role_id)->first()->delete == 1 ?? false;
     }
     return false;
 }

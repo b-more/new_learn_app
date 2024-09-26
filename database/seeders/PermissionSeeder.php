@@ -16,7 +16,7 @@ class PermissionSeeder extends Seeder
         DB::table('permissions')->insert([
             [
                 "role_id" => 1,
-                "module" => "Assigned Modules",
+                "module" => "Assigned Module",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -24,7 +24,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 1,
-                "module" => "Attempted Answers",
+                "module" => "Quiz Score",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -32,7 +32,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 1,
-                "module" => "Modules",
+                "module" => "Module",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -40,7 +40,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 1,
-                "module" => "Lessons",
+                "module" => "Lesson",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -48,7 +48,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 1,
-                "module" => "Quizes",
+                "module" => "Quiz",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -56,7 +56,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 1,
-                "module" => "System Users",
+                "module" => "User",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -72,7 +72,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "Assigned Modules",
+                "module" => "Assigned Module",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -80,7 +80,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "Attempted Answers",
+                "module" => "Quiz Score",
                 "create" => 0,
                 "read" => 0,
                 "update" => 0,
@@ -88,7 +88,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "Modules",
+                "module" => "Module",
                 "create" => 0,
                 "read" => 0,
                 "update" => 0,
@@ -96,7 +96,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "Lessons",
+                "module" => "Lesson",
                 "create" => 0,
                 "read" => 0,
                 "update" => 0,
@@ -104,7 +104,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "Quizes",
+                "module" => "Quiz",
                 "create" => 0,
                 "read" => 0,
                 "update" => 0,
@@ -112,7 +112,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "System Users",
+                "module" => "User",
                 "create" => 0,
                 "read" => 0,
                 "update" => 0,

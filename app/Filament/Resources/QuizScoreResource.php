@@ -29,6 +29,11 @@ class QuizScoreResource extends Resource
 
     public static $title = "Progress Report";
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return checkReadQuizScorePermission();
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
