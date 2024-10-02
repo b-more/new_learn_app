@@ -1,3 +1,3 @@
 <a href="/">
-    <img src="{{ asset('imgs/brand.png') }}" class="h-10">
+    <img src="{{ asset('imgs/aml.png') }}" class="h-10">
 </a>
