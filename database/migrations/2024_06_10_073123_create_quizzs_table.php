@@ -21,7 +21,7 @@ return new class extends Migration
             $table->text("answer_option_b");
             $table->text("answer_option_c");
             $table->text("answer_option_d");
-            $table->string("duration");
+            $table->string("duration")->nullable();
             $table->timestamps();
         });
     }

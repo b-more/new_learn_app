@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
+use Illuminate\Database\Eloquent\Collection;
 
 //Audit Trails
 function checkCreateAuthTrailsPermission(): bool
@@ -396,6 +397,7 @@ class UserResource extends Resource
                         Forms\Components\Select::make('modules')
                             ->relationship('modules', 'title')
                             ->label('Assign Modules')
+                            ->preload()
                             ->multiple()
                             ->required()
 
@@ -427,6 +429,11 @@ class UserResource extends Resource
                         return Role::where('id', $record->role_id)->first()->name ?? "";
                     })
                     ->label('Role'),
+                Tables\Columns\TextColumn::make('modules.title')
+                    ->label('Assigned Modules')
+                    ->badge()
+                    ->searchable()
+                    ->wrap(),
                 Tables\Columns\TextColumn::make('branch_id')
                     ->formatStateUsing(function ($record){
                         return Branch::where('id', $record->branch_id)->first()->name ?? "";
@@ -440,6 +447,10 @@ class UserResource extends Resource
                     })
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('modules')
+                    ->relationship('modules', 'title')
+                    ->multiple()
+                    ->preload(),
                 SelectFilter::make('role_id')
                 ->multiple()
                 ->label('Role')
@@ -472,7 +483,48 @@ class UserResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     ActionsExportBulkAction::make()
                     ->label('Download Users Report'),
-                ]),
+                    Tables\Actions\BulkAction::make('assignModules')
+                        ->label('Mass Assign Modules')
+                        ->icon('heroicon-o-book-open')
+                        ->action(function (Collection $records, array $data): void {
+                            foreach ($records as $record) {
+                                $record->modules()->syncWithoutDetaching($data['modules']);
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->form([
+                            Forms\Components\Select::make('modules')
+                                ->multiple()
+                                ->preload()
+                                ->label('Select Modules')
+                                ->options(function () {
+                                    return \App\Models\Module::pluck('title', 'id');
+                                })
+                                ->required(),
+                        ]),
+                    Tables\Actions\BulkAction::make('unassignModules')
+                        ->label('Unassign Modules')
+                        ->icon('heroicon-o-book-open')
+                        ->color('danger')
+
+                        ->action(function (Collection $records, array $data): void {
+                            foreach ($records as $record) {
+                                $record->modules()->detach($data['modules']);
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->form([
+                            Forms\Components\Select::make('modules')
+                                ->multiple()
+                                ->preload()
+                                ->label('Select Modules to Unassign')
+                                ->options(function () {
+                                    return \App\Models\Module::pluck('title', 'id')->filter()->toArray();
+                                })
+                                ->required(),
+                        ])
+                        ->requiresConfirmation(),
+                ])
             ]);
     }
 

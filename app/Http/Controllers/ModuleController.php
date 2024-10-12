@@ -6,6 +6,7 @@ use App\Models\AttemptAnswer;
 use App\Models\Lesson;
 use App\Models\Quizz;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ModuleController extends Controller
 {
@@ -46,6 +47,8 @@ class ModuleController extends Controller
 
     public function marking(Request $request)
     {
+        Log::info("Quiz Answers", $request->all());
+
         $request->validate([
             'user_id' => 'required',
             'lesson_id' => 'required',
