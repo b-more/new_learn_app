@@ -54,41 +54,47 @@
                                 </div>
                             </div>
                             <div id="selected_quiz" class="">
-                                <div class="text-md font-bold mb-8">MULTIPLE CHOICE QUESTION</div>
-                                <div id="question_asked" class="text-sm font-semibold mb-10 p-6 bg-green-800 bg-opacity-10"></div>
-                                <fieldset>
-                                    <legend class="sr-only">Multiple Choice Question</legend>
-                                    <input hidden name="user_id" value="{{ Auth::user()->id }}">
-                                    <input hidden id="module_id" name="module_id">
-                                    <input hidden id="lesson_id" name="lesson_id">
+                                <div class="text-md font-bold mb-8">{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id)->count() }} MULTIPLE CHOICE QUESTION</div>
+                                @foreach(\App\Models\Quizz::where('lesson_id',$lessons->first()->id)->get() as $quiz)
+                                    <div id="question_asked" class="text-sm font-semibold mb-10 p-6 bg-green-800 bg-opacity-10">{{ $quiz->question }}</div>
+                                    <fieldset>
+                                        <legend class="sr-only">Multiple Choice Question</legend>
+                                        <input hidden name="user_id" value="{{ Auth::user()->id }}">
+                                        <input hidden name="quiz_id" value="{{ $quiz->id }}">
+                                        <input hidden name="quiz_total" value="{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id)->count() }}">
+                                        <input hidden id="module_id" name="module_id" value="{{ $lessons->first()->module_id }}">
+                                        <input hidden id="lesson_id" name="lesson_id" value="{{ $lessons->first()->id }}">
 
-                                    <div class="flex items-center mb-4">
-                                        <input id="a" type="radio" name="options" value="A" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" checked>
-                                        <label id="answer_option_a" for="a" class="block ms-2  text-sm font-medium text-gray-900 dark:text-gray-300">
-                                        </label>
-                                    </div>
+                                        <div class="flex items-center mb-4">
+                                            <input id="a_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="A" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
+                                            <label id="answer_option_a" for="a" class="block ms-2  text-sm font-medium text-gray-900 dark:text-gray-300">
+                                                A. {{ $quiz->answer_option_a }}
+                                            </label>
+                                        </div>
 
-                                    <div class="flex items-center mb-4">
-                                        <input id="b" type="radio" name="options" value="B" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600">
-                                        <label id="answer_option_b" for="b" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                        <div class="flex items-center mb-4">
+                                            <input id="b_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="B" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
+                                            <label id="answer_option_b" for="b" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                                B. {{ $quiz->answer_option_b }}
+                                            </label>
+                                        </div>
 
-                                        </label>
-                                    </div>
+                                        <div class="flex items-center mb-4">
+                                            <input id="c_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="C" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
+                                            <label id="answer_option_c" for="c" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                                C. {{ $quiz->answer_option_c }}
+                                            </label>
+                                        </div>
 
-                                    <div class="flex items-center mb-4">
-                                        <input id="c" type="radio" name="options" value="C" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600">
-                                        <label id="answer_option_c" for="c" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                        <div class="flex items-center mb-4">
+                                            <input id="d_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="D" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-green-800 dark:focus-ring-green-600 dark:bg-gray-700 dark:border-gray-600" required>
+                                            <label id="answer_option_d" for="d" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                                D. {{ $quiz->answer_option_d }}
+                                            </label>
+                                        </div>
+                                    </fieldset>
+                                @endforeach
 
-                                        </label>
-                                    </div>
-
-                                    <div class="flex items-center mb-4">
-                                        <input id="d" type="radio" name="options" value="D" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-green-800 dark:focus-ring-green-600 dark:bg-gray-700 dark:border-gray-600">
-                                        <label id="answer_option_d" for="d" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-
-                                        </label>
-                                    </div>
-                                </fieldset>
                             </div>
                         </form>
                     </div>
@@ -100,13 +106,34 @@
 
                 </div>
                 <div id="correct" class="hidden">
-                    <div class="w-full py-5 flex flex-col items-center justify-center bg-white shadow-md rounded-lg">
-                        <div class="flex flex-col items-center justify-center">
-                            <dotlottie-player src="{{ asset('anims/correct.json') }}" background="transparent" speed="1" class="w-full h-[200px]" loop autoplay></dotlottie-player>
-                        </div>
-                        <div class="text-green-800 font-bold text-lg text-center">100%</div>
-                        <div class="text-green-800 font-bold text-md text-center">Correct Answer</div>
-                        <div class="text-green-800 text-sm text-center">Choose your next lesson</div>
+                    <div class="w-full py-5 flex flex-col items-center justify-start bg-white shadow-md rounded-lg">
+                        <table class="table-auto">
+                            <thead>
+                            <tr>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>Score (percentage)</td>
+                                <td id="percentage"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Questions</td>
+                                <td id="questions"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Passed</td>
+                                <td id="passed"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Failed</td>
+                                <td id="failed"></td>
+                            </tr>
+
+                            </tbody>
+                        </table>
                     </div>
 
                 </div>
@@ -360,11 +387,11 @@
                         if (data.success) {
                             // Handle success (status code 200 and success flag is true)
                             //document.getElementById('lessons_details').classList.remove("hidden");
-                            document.getElementById('question_asked').innerText = data.quiz.question
-                            document.getElementById('answer_option_a').innerText = data.quiz.answer_option_a;
-                            document.getElementById('answer_option_b').innerText = data.quiz.answer_option_b;
-                            document.getElementById('answer_option_c').innerText = data.quiz.answer_option_c;
-                            document.getElementById('answer_option_d').innerText = data.quiz.answer_option_d;
+                            // document.getElementById('question_asked').innerText = data.quiz.question
+                            // document.getElementById('answer_option_a').innerText = data.quiz.answer_option_a;
+                            // document.getElementById('answer_option_b').innerText = data.quiz.answer_option_b;
+                            // document.getElementById('answer_option_c').innerText = data.quiz.answer_option_c;
+                            // document.getElementById('answer_option_d').innerText = data.quiz.answer_option_d;
                         } else {
                             throw new Error('Response success flag is false');
                         }
@@ -380,24 +407,18 @@
                 document.getElementById('selected_lesson').classList.add('hidden');
                 document.getElementById('loading').classList.remove("hidden");
 
+                const percentage = document.getElementById('percentage');
+                const questions = document.getElementById('questions');
+                const passed = document.getElementById('passed');
+                const failed = document.getElementById('failed');
+
                 // Custom form submission logic
                 const formData = new FormData(form);
-                const user_id = formData.get('user_id');
-                const lesson_id = formData.get('lesson_id');
-                const module_id = formData.get('module_id');
-                const answer = formData.get('options');
-
+                const formObject = Object.fromEntries(formData.entries()); // Convert FormData to a plain object
 
                 //send for marking
                 //code to query module summaries
                 const apiUrl = '/api/mark';
-
-                const postId = {
-                    user_id: user_id,
-                    lesson_id: lesson_id,
-                    module_id: module_id,
-                    answer: answer
-                };
 
                 fetch(apiUrl, {
                     method: 'POST',
@@ -405,7 +426,7 @@
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(postId)
+                    body: JSON.stringify(formObject) // Send as JSON
                 }).then(response => {
 
                     if (response.status === 200) {
@@ -420,23 +441,23 @@
                     }
                 }).then(data => {
                     if (data.success) {
-                        console.log(data.answer);
+                        percentage.innerText = "";
+                        questions.innerText = "";
+                        passed.innerText = "";
+                        failed.innerText = "";
+
                         // Handle success (status code 200 and success flag is true)
                         //document.getElementById('lessons_details').classList.remove("hidden");
-                        if(data.answer === "Correct")
-                        {
-                            document.getElementById("correct").classList.remove("hidden");
-                            document.getElementById("wrong").classList.add("hidden");
-                            document.getElementById("loading").classList.add("hidden");
-                        }else if(data.answer === "Wrong"){
-                            document.getElementById("correct").classList.add("hidden");
-                            document.getElementById("wrong").classList.remove("hidden");
-                            document.getElementById("loading").classList.add("hidden");
-                        }else{
-                            document.getElementById("correct").classList.add("hidden");
-                            document.getElementById("wrong").classList.remove("hidden");
-                            document.getElementById("loading").classList.add("hidden");
-                        }
+                        document.getElementById("correct").classList.remove("hidden");
+                        document.getElementById("wrong").classList.add("hidden");
+                        document.getElementById("loading").classList.add("hidden");
+
+                        console.log(data)
+
+                        percentage.innerText = data.pass_percentage + '%';
+                        questions.innerText = data.total_questions;
+                        passed.innerText = data.total_correct;
+                        failed.innerText = data.total_wrong;
                     } else {
                         throw new Error('Response success flag is false');
                     }

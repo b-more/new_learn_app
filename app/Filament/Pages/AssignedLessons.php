@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Lesson;
 use App\Models\Module;
+use App\Models\Quizz;
 use Filament\Pages\Page;
 
 class AssignedLessons extends Page
