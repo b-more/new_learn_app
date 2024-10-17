@@ -61,6 +61,7 @@
                                         <legend class="sr-only">Multiple Choice Question</legend>
                                         <input hidden name="user_id" value="{{ Auth::user()->id }}">
                                         <input hidden name="quiz_id" value="{{ $quiz->id }}">
+                                        <input hidden name="quiz_total" value="{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id)->count() }}">
                                         <input hidden id="module_id" name="module_id" value="{{ $lessons->first()->module_id }}">
                                         <input hidden id="lesson_id" name="lesson_id" value="{{ $lessons->first()->id }}">
 
@@ -105,13 +106,34 @@
 
                 </div>
                 <div id="correct" class="hidden">
-                    <div class="w-full py-5 flex flex-col items-center justify-center bg-white shadow-md rounded-lg">
-                        <div class="flex flex-col items-center justify-center">
-                            <dotlottie-player src="{{ asset('anims/correct.json') }}" background="transparent" speed="1" class="w-full h-[200px]" loop autoplay></dotlottie-player>
-                        </div>
-                        <div class="text-green-800 font-bold text-lg text-center">100%</div>
-                        <div class="text-green-800 font-bold text-md text-center">Correct Answer</div>
-                        <div class="text-green-800 text-sm text-center">Choose your next lesson</div>
+                    <div class="w-full py-5 flex flex-col items-center justify-start bg-white shadow-md rounded-lg">
+                        <table class="table-auto">
+                            <thead>
+                            <tr>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>Score (percentage)</td>
+                                <td id="percentage"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Questions</td>
+                                <td id="questions"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Passed</td>
+                                <td id="passed"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Failed</td>
+                                <td id="failed"></td>
+                            </tr>
+
+                            </tbody>
+                        </table>
                     </div>
 
                 </div>
@@ -385,6 +407,11 @@
                 document.getElementById('selected_lesson').classList.add('hidden');
                 document.getElementById('loading').classList.remove("hidden");
 
+                const percentage = document.getElementById('percentage');
+                const questions = document.getElementById('questions');
+                const passed = document.getElementById('passed');
+                const failed = document.getElementById('failed');
+
                 // Custom form submission logic
                 const formData = new FormData(form);
                 const formObject = Object.fromEntries(formData.entries()); // Convert FormData to a plain object
@@ -414,23 +441,23 @@
                     }
                 }).then(data => {
                     if (data.success) {
-                        console.log(data.answer);
+                        percentage.innerText = "";
+                        questions.innerText = "";
+                        passed.innerText = "";
+                        failed.innerText = "";
+
                         // Handle success (status code 200 and success flag is true)
                         //document.getElementById('lessons_details').classList.remove("hidden");
-                        if(data.answer === "Correct")
-                        {
-                            document.getElementById("correct").classList.remove("hidden");
-                            document.getElementById("wrong").classList.add("hidden");
-                            document.getElementById("loading").classList.add("hidden");
-                        }else if(data.answer === "Wrong"){
-                            document.getElementById("correct").classList.add("hidden");
-                            document.getElementById("wrong").classList.remove("hidden");
-                            document.getElementById("loading").classList.add("hidden");
-                        }else{
-                            document.getElementById("correct").classList.add("hidden");
-                            document.getElementById("wrong").classList.remove("hidden");
-                            document.getElementById("loading").classList.add("hidden");
-                        }
+                        document.getElementById("correct").classList.remove("hidden");
+                        document.getElementById("wrong").classList.add("hidden");
+                        document.getElementById("loading").classList.add("hidden");
+
+                        console.log(data)
+
+                        percentage.innerText = data.pass_percentage + '%';
+                        questions.innerText = data.total_questions;
+                        passed.innerText = data.total_correct;
+                        failed.innerText = data.total_wrong;
                     } else {
                         throw new Error('Response success flag is false');
                     }
