@@ -2,18 +2,28 @@
 
 namespace App\Livewire;
 
-use App\Models\AttemptAnswer;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use App\Models\AttemptAnswer;
 
 class StatsOverview extends BaseWidget
 {
     protected function getStats(): array
     {
-        $total_assigned_modules = auth()->user()->modules->count();
-        $total_attempts = AttemptAnswer::where('user_id', auth()->user()->id)->count();
-        $total_success = number_format((AttemptAnswer::where('user_id', auth()->user()->id)->where('auto_mark',1)->count()/$total_attempts)*100,2)."%";
-        $total_fail = number_format((AttemptAnswer::where('user_id', auth()->user()->id)->where('auto_mark',0)->count()/$total_attempts)*100,2)."%";
+        $user = auth()->user();
+        $total_assigned_modules = $user->modules->count();
+        $total_attempts = AttemptAnswer::where('user_id', $user->id)->count();
+
+        if ($total_attempts > 0) {
+            $success_count = AttemptAnswer::where('user_id', $user->id)->where('auto_mark', 1)->count();
+            $fail_count = AttemptAnswer::where('user_id', $user->id)->where('auto_mark', 0)->count();
+            
+            $total_success = number_format(($success_count / $total_attempts) * 100, 1) . "%";
+            $total_fail = number_format(($fail_count / $total_attempts) * 100, 1) . "%";
+        } else {
+            $total_success = "0%";
+            $total_fail = "0%";
+        }
 
         return [
             Stat::make('Total Assigned Modules', $total_assigned_modules),

@@ -1,0 +1,6 @@
+acct_no,acct_name,acct_opn_date,branch,address_line,mobile_no,nrc_no,tpin_number,email,acct_cls_flg,acct_balance,cif_id,dob,acct_status,old_acct_no,schm_code,schm_desc
+0012345678,John Doe,2020-05-10,Branch A,123 Main St,0979123456,12345678,1001234567,john.doe@example.com,N,1200.5,CIF12345,1990-07-25,Active,0011223344,SC01,Savings Account
+0012345679,Jane Smith,2021-03-15,Branch B,456 Market Rd,0979876543,87654321,1007654321,jane.smith@example.com,Y,2500.75,CIF12346,1985-02-17,Closed,0011223345,SC02,Current Account
+0012345680,Alice Brown,2019-11-23,Branch C,789 Oak Dr,0979123789,12348765,1008765432,alice.brown@example.com,N,3100.0,CIF12347,1995-08-05,Inactive,0011223346,SC01,Savings Account
+0012345681,Bob Johnson,2022-01-30,Branch D,321 Pine St,0979234567,87653214,1009876543,bob.johnson@example.com,N,800.0,CIF12348,1992-04-11,Active,0011223347,SC03,Business Account
+0012345682,Charlie Wilson,2023-07-12,Branch E,654 Maple Ave,0979345678,43215678,1001234987,charlie.wilson@example.com,Y,5000.25,CIF12349,1988-12-20,Active,0011223348,SC01,Savings Account
