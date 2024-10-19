@@ -70,6 +70,7 @@ class PermissionResource extends Resource
                         'Lesson' => 'Lesson',
                         'Module' => 'Module',
                         'Quiz' => 'Quiz',
+                        'QuizScore' => 'QuizScore',
                         'Role' => 'Role',
                         'User' => 'User',
                     ]),

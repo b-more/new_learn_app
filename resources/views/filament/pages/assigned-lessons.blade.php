@@ -54,8 +54,8 @@
                                 </div>
                             </div>
                             <div id="selected_quiz" class="">
-                                <div class="text-md font-bold mb-8">{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id)->count() }} MULTIPLE CHOICE QUESTION</div>
-                                @foreach(\App\Models\Quizz::where('lesson_id',$lessons->first()->id)->get() as $quiz)
+                                <div class="text-md font-bold mb-8">{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->count() }} MULTIPLE CHOICE QUESTION</div>
+                                @foreach(\App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->get() as $quiz)
                                     <div id="question_asked" class="text-sm font-semibold mb-10 p-6 bg-green-800 bg-opacity-10">{{ $quiz->question }}</div>
                                     <fieldset>
                                         <legend class="sr-only">Multiple Choice Question</legend>

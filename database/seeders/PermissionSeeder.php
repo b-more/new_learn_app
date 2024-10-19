@@ -24,7 +24,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 1,
-                "module" => "Quiz Score",
+                "module" => "QuizScore",
                 "create" => 1,
                 "read" => 1,
                 "update" => 1,
@@ -80,7 +80,7 @@ class PermissionSeeder extends Seeder
             ],
             [
                 "role_id" => 2,
-                "module" => "Quiz Score",
+                "module" => "QuizScore",
                 "create" => 0,
                 "read" => 0,
                 "update" => 0,
