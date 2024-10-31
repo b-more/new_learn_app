@@ -4,26 +4,26 @@
         <div class="mb-10">
             @livewire(\App\Livewire\StatsOverview::class)
         </div>
-        <div class="flex flex-row items-start h-screen w-full">
+        <div class="flex flex-row items-start w-full h-screen">
 
-            <div id="modules" class="w-2/3 h-full overflow-y-scroll px-6">
+            <div id="modules" class="w-2/3 h-full px-6 overflow-y-scroll">
                 @foreach(auth()->user()->modules as $index => $module)
-                    <button id="{{ $module->id }}" class="module-button px-6 py-3 bg-green-800 bg-opacity-5 rounded-lg flex flex-row items-center space-x-3 w-full mb-4"
+                    <button id="{{ $module->id }}" class="flex flex-row items-center w-full px-6 py-3 mb-4 space-x-3 bg-green-800 rounded-lg module-button bg-opacity-5"
                             data-title="{{ $module->title }}"
                             data-image-url="{{ $module->icon }}"
                             data-description="{{ $module->description }}">
-                        <div class="w-2/8 text-4xl font-extrabold text-green-800">
+                        <div class="text-4xl font-extrabold text-green-800 w-2/8">
                             {{ $index+1 }}
                         </div>
                         <div class="w-6/8">
                             <div class="text-sm text-start">{{ $module->title }}</div>
-                            <div class="text-gray-500 text-xs text-start">{{ $module->description }}</div>
+                            <div class="text-xs text-gray-500 text-start">{{ $module->description }}</div>
                         </div>
 
                     </button>
                 @endforeach
             </div>
-            <div class="w-1/3 h-full bg-green-800 bg-opacity-5 rounded overflow-y-scroll p-6">
+            <div class="w-1/3 h-full p-6 overflow-y-scroll bg-green-800 rounded bg-opacity-5">
                 <div id="content">
                     <div>
                         <a id="lessons_link">
@@ -32,7 +32,7 @@
                     </div>
                     <div id="title" class="mt-4 text-sm font-semibold">
                     </div>
-                    <div id="description" class="text-xs text-gray-600 mt-2">
+                    <div id="description" class="mt-2 text-xs text-gray-600">
                     </div>
                     <div id="loading" class="hidden">
                         <div class="flex flex-col items-center justify-center">
@@ -41,10 +41,10 @@
                     </div>
                     <div id="lessons_details" class="hidden mt-6">
                         <div class="flex flex-row items-center justify-between mb-4">
-                            <div class="font-bold text-sm">Total Lessons</div>
-                            <div id="total_lessons" class="text-md font-extrabold"></div>
+                            <div class="text-sm font-bold">Total Lessons</div>
+                            <div id="total_lessons" class="font-extrabold text-md"></div>
                         </div>
-                        <a id="lesson_btn" class="rounded-full px-6 py-2 text-white font-semibold text-sm items-center bg-green-800 flex flex-row space-x-3 justify-end hover:bg-green-700">
+                        <a id="lesson_btn" class="flex flex-row items-center justify-end px-6 py-2 space-x-3 text-sm font-semibold text-white bg-green-800 rounded-full hover:bg-green-700">
                             <div>Proceed</div>
                             <div>></div>
                         </a>
@@ -73,7 +73,7 @@
 
                     document.getElementById('thumbnail').innerHTML = "";
                     document.getElementById('title').innerText = `${buttonTitle}`;
-                    document.getElementById('thumbnail').src = '/storage/'+`${buttonImageUrl}`;
+                    document.getElementById('thumbnail').src = `/storage/${buttonImageUrl}`;
                     document.getElementById('lessons_link').href = '/course/assigned-lessons?b='+`${buttonId}`;
                     document.getElementById('description').innerText = `${buttonDescription}`;
 

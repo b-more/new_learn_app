@@ -1,26 +1,26 @@
 <x-filament-panels::page>
     <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
     <div>
-        <div class="flex flex-row items-start h-screen w-full">
-            <div class="w-2/3 h-full overflow-y-scroll px-6">
+        <div class="flex flex-row items-start w-full h-screen">
+            <div class="w-2/3 h-full px-6 overflow-y-scroll">
                 <div id="selected_lesson"  class="hidden">
-                    <div class="step w-full" id="step1">
-                        <div class="w-full flex flex-row items-center justify-start">
+                    <div class="w-full step" id="step1">
+                        <div class="flex flex-row items-center justify-start w-full">
                             <div>
-                                <button type="button" onclick="nextStep()" class="bg-green-800 px-8 py-2 rounded-full text-center text-white hover:bg-green-700 hover:cursor-pointer">Next</button>
+                                <button type="button" onclick="nextStep()" class="px-8 py-2 text-center text-white bg-green-800 rounded-full hover:bg-green-700 hover:cursor-pointer">Next</button>
                             </div>
                         </div>
                         <div id="video_show" class="mt-8">
                         </div>
 
-                        <div id="video_title" class="mt-6 text-md font-semibold">
+                        <div id="video_title" class="mt-6 font-semibold text-md">
                         </div>
                         <div id="video_description" class="mb-4 text-xs font-medium">
                         </div>
                         <hr class="mb-10">
 
                         <div class="mb-4 text-xs font-medium">
-                            <div class="text-md font-bold">Downloadable Files</div>
+                            <div class="font-bold text-md">Downloadable Files</div>
                             <a id="lessonDownloadLink0" download class="text-green-800 underline"></a><br/>
                             <a id="lessonDownloadLink1" download class="text-green-800 underline"></a><br/>
                             <a id="lessonDownloadLink2" download class="text-green-800 underline"></a><br/>
@@ -38,14 +38,14 @@
                         </div>
 
                     </div>
-                    <div class="step w-full" id="step2">
+                    <div class="w-full step" id="step2">
                         <form id="quiz_form" method="POST">
-                            <div class="w-full flex flex-row items-center justify-between mb-8">
+                            <div class="flex flex-row items-center justify-between w-full mb-8">
                                 <div>
-                                    <button type="button" onclick="prevStep()" class="bg-green-800 px-8 py-2 rounded-full text-center text-white hover:bg-green-700 hover:cursor-pointer">Previous</button>
+                                    <button type="button" onclick="prevStep()" class="px-8 py-2 text-center text-white bg-green-800 rounded-full hover:bg-green-700 hover:cursor-pointer">Previous</button>
                                 </div>
                                 <div>
-                                    <button type="submit" class="bg-green-800 px-8 py-2 rounded-full text-center text-white hover:bg-green-700 hover:cursor-pointer">Submit</button>
+                                    <button type="submit" class="px-8 py-2 text-center text-white bg-green-800 rounded-full hover:bg-green-700 hover:cursor-pointer">Submit</button>
                                 </div>
                             </div>
                             <div id="loading" class="hidden">
@@ -54,9 +54,9 @@
                                 </div>
                             </div>
                             <div id="selected_quiz" class="">
-                                <div class="text-md font-bold mb-8">{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->count() }} MULTIPLE CHOICE QUESTION</div>
+                                <div class="mb-8 font-bold text-md">{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->count() }} MULTIPLE CHOICE QUESTION</div>
                                 @foreach(\App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->get() as $quiz)
-                                    <div id="question_asked" class="text-sm font-semibold mb-10 p-6 bg-green-800 bg-opacity-10">{{ $quiz->question }}</div>
+                                    <div id="question_asked" class="p-6 mb-10 text-sm font-semibold bg-green-800 bg-opacity-10">{{ $quiz->question }}</div>
                                     <fieldset>
                                         <legend class="sr-only">Multiple Choice Question</legend>
                                         <input hidden name="user_id" value="{{ Auth::user()->id }}">
@@ -67,28 +67,28 @@
 
                                         <div class="flex items-center mb-4">
                                             <input id="a_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="A" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_a" for="a" class="block ms-2  text-sm font-medium text-gray-900 dark:text-gray-300">
+                                            <label id="answer_option_a" for="a" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
                                                 A. {{ $quiz->answer_option_a }}
                                             </label>
                                         </div>
 
                                         <div class="flex items-center mb-4">
                                             <input id="b_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="B" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_b" for="b" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                            <label id="answer_option_b" for="b" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
                                                 B. {{ $quiz->answer_option_b }}
                                             </label>
                                         </div>
 
                                         <div class="flex items-center mb-4">
                                             <input id="c_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="C" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_c" for="c" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                            <label id="answer_option_c" for="c" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
                                                 C. {{ $quiz->answer_option_c }}
                                             </label>
                                         </div>
 
                                         <div class="flex items-center mb-4">
                                             <input id="d_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="D" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-green-800 dark:focus-ring-green-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_d" for="d" class="block ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                            <label id="answer_option_d" for="d" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
                                                 D. {{ $quiz->answer_option_d }}
                                             </label>
                                         </div>
@@ -106,7 +106,7 @@
 
                 </div>
                 <div id="correct" class="hidden">
-                    <div class="w-full py-5 flex flex-col items-center justify-start bg-white shadow-md rounded-lg">
+                    <div class="flex flex-col items-center justify-start w-full py-5 bg-white rounded-lg shadow-md">
                         <table class="table-auto">
                             <thead>
                             <tr>
@@ -138,20 +138,20 @@
 
                 </div>
                 <div id="wrong" class="hidden">
-                    <div class="w-full py-10 flex flex-col items-center justify-center bg-white shadow-md rounded-lg">
+                    <div class="flex flex-col items-center justify-center w-full py-10 bg-white rounded-lg shadow-md">
                         <div class="flex flex-col items-center justify-center">
                             <dotlottie-player src="{{ asset('anims/wrong.json') }}" background="transparent" speed="1" class="w-full h-[50px]" loop autoplay></dotlottie-player>
                         </div>
-                        <div class="text-red-600 font-bold text-md text-center mt-10 mb-16">Wrong Answer</div>
-                        <button type="button" onclick="reTake()" class="bg-green-800 hover:bg-green-700 text-sm text-center px-6 py-2 text-white rounded-full">Re-Take</button>
+                        <div class="mt-10 mb-16 font-bold text-center text-red-600 text-md">Wrong Answer</div>
+                        <button type="button" onclick="reTake()" class="px-6 py-2 text-sm text-center text-white bg-green-800 rounded-full hover:bg-green-700">Re-Take</button>
                     </div>
 
                 </div>
             </div>
-            <div id="current_lessons" class="w-1/3 h-full bg-green-800 bg-opacity-5 rounded overflow-y-scroll p-6">
-                <div class="text-md font-bold mb-4">LESSONS</div>
+            <div id="current_lessons" class="w-1/3 h-full p-6 overflow-y-scroll bg-green-800 rounded bg-opacity-5">
+                <div class="mb-4 font-bold text-md">LESSONS</div>
                 @foreach($lessons as $lesson)
-                    <div id="{{ $lesson->id }}" class="lesson-button rounded-md bg-green-800 bg-opacity-30"
+                    <div id="{{ $lesson->id }}" class="bg-green-800 rounded-md lesson-button bg-opacity-30"
                          data-id="{{ $lesson->id }}"
                          data-module-id="{{ $lesson->module_id }}"
                          data-title="{{ $lesson->title }}"
@@ -162,11 +162,11 @@
                          data-lesson-documents="{{ json_encode($lesson->documents) }}"
                     >
 
-                        <div class="w-full grid grid-cols-4 items-center p-1 relative mb-3">
+                        <div class="relative grid items-center w-full grid-cols-4 p-1 mb-3">
                             <div class="w-[50px] h-[50px] col-span-1">
                                 <img src="{{ '/storage/'.$lesson->video_thumbnail }}" class="w-[50px] h-[50px] object-cover">
                             </div>
-                            <div class="text-xs col-span-3">{{ $lesson->title }}</div>
+                            <div class="col-span-3 text-xs">{{ $lesson->title }}</div>
                             <div class="absolute -top-4 -left-4">
                                 <img src="{{ asset('imgs/success.png') }}" class="h-10">
                             </div>
@@ -180,6 +180,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             const lessons = document.querySelectorAll('.lesson-button');
+
             // Create a link element for each document
 
             const videoShow = document.getElementById("video_show");
@@ -213,6 +214,8 @@
 
                     // Add the class to the clicked button
                     this.classList.add('border-r-8', 'border-green-800','border-opacity-80');
+                    const selectedLesson = document.getElementById("selected_lesson");
+                    selectedLesson.classList.remove("hidden");
 
                     const lessonId = this.id;
                     const lessonTitle = this.getAttribute('data-title');
@@ -221,6 +224,7 @@
                     const lessonVideoLength = this.getAttribute('data-video-length');
                     const lessonVideoThumbnail = this.getAttribute('data-video-thumbnail');
                     const lessonDocumentsString = this.getAttribute('data-lesson-documents');
+
 
                     const currentURL = window.location.href;
                     const urlObject = new URL(currentURL);
@@ -257,7 +261,7 @@
                     document.getElementById("module_id").value = this.getAttribute('data-module-id');
                     document.getElementById("lesson_id").value = this.getAttribute('data-id');
 
-                    const selectedLesson = document.getElementById("selected_lesson");
+
                     selectedLesson.classList.remove("hidden");
 
                     // Convert the string to an array
