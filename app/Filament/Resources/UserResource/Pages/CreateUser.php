@@ -46,11 +46,14 @@ class CreateUser extends CreateRecord
 
     protected function afterCreate()
     {
+        $activityService = app(ActivityTrackingService::class);
+        $activityService->trackUserCreation($this->record->id, Auth::id());
+
         //log user activity
         $activity = AuditTrail::create([
             "user_id" => Auth::user()->id,
             "module" => "User",
-            "activity" => "Created Business record with ID ".$this->record,
+            "activity" => "Created User record with ID ".$this->record,
             "ip_address" => request()->ip()
         ]);
 

@@ -12,7 +12,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // Register your custom middleware here
+        $middleware->alias([
+            'track.activity' => \App\Http\Middleware\TrackUserActivity::class,
+        ]);
+
+         // Or add it to web middleware group
+        // $middleware->web(append: [
+        //     \App\Http\Middleware\TrackUserActivity::class,
+        // ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

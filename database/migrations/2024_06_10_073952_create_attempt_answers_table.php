@@ -13,12 +13,23 @@ return new class extends Migration
     {
         Schema::create('attempt_answers', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger("user_id");
-            $table->unsignedBigInteger("module_id");
-            $table->unsignedBigInteger("lesson_id");
-            $table->text("user_answer");
-            $table->boolean("auto_mark");
+            $table->unsignedBigInteger("user_id")->nullable();
+            $table->unsignedBigInteger("module_id")->nullable();
+            $table->unsignedBigInteger("lesson_id")->nullable();
+            $table->text("user_answer")->nullable();
+            $table->boolean("auto_mark")->nullable();
+            $table->unsignedBigInteger('quiz_id')->nullable();
+            $table->timestamp('attempt_started_at')->nullable();
+            $table->timestamp('attempt_completed_at')->nullable();
+            $table->integer('time_taken_seconds')->nullable();
+            $table->integer('total_questions')->nullable();
+            $table->integer('correct_answers')->nullable();
+            $table->decimal('score_percentage', 5, 2)->nullable();
+            $table->enum('attempt_status', ['started', 'completed', 'abandoned'])->default('started');
+            $table->json('detailed_answers')->nullable();
             $table->timestamps();
+
+            $table->index(['user_id', 'module_id', 'attempt_completed_at']);
         });
     }
 
