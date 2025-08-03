@@ -1,517 +1,664 @@
 <x-filament-panels::page>
-    <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
-    <div>
-        <div class="flex flex-row items-start w-full h-screen">
-            <div class="w-2/3 h-full px-6 overflow-y-scroll">
-                <div id="selected_lesson"  class="hidden">
-                    <div class="w-full step" id="step1">
-                        <div class="flex flex-row items-center justify-start w-full">
-                            <div>
-                                <button type="button" onclick="nextStep()" class="px-8 py-2 text-center text-white bg-green-800 rounded-full hover:bg-green-700 hover:cursor-pointer">Next</button>
-                            </div>
-                        </div>
-                        <div id="video_show" class="mt-8">
-                        </div>
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
-                        <div id="video_title" class="mt-6 font-semibold text-md">
-                        </div>
-                        <div id="video_description" class="mb-4 text-xs font-medium">
-                        </div>
-                        <hr class="mb-10">
+<style>
+/* Timer Styles */
+.quiz-timer-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
 
-                        <div class="mb-4 text-xs font-medium">
-                            <div class="font-bold text-md">Downloadable Files</div>
-                            <a id="lessonDownloadLink0" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink1" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink2" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink3" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink4" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink5" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink6" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink7" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink8" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink9" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink10" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink11" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink12" download class="text-green-800 underline"></a><br/>
-                            <a id="lessonDownloadLink13" download class="text-green-800 underline"></a><br/>
-                        </div>
+.timer-display {
+    font-size: 28px;
+    font-weight: bold;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
 
+.timer-progress-bar {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    height: 8px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+
+.timer-progress-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: all 1s ease;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+}
+
+.timer-warning {
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFEAA7;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.timer-expired {
+    background: #F8D7DA;
+    color: #721C24;
+    border: 1px solid #F5C6CB;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.step {
+    display: none;
+}
+
+.step.active {
+    display: block;
+}
+
+/* Additional styling for quiz */
+.quiz-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.lesson-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.quiz-question {
+    background: rgba(34, 197, 94, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.quiz-option {
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.quiz-option:hover {
+    border-color: #3b82f6;
+    background-color: #f8fafc;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: #22c55e;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #16a34a;
+}
+
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+}
+</style>
+
+<div class="quiz-container">
+    <!-- Header -->
+    <div class="lesson-card">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ $module_title }}</h1>
+        <p class="text-gray-600">Complete the lesson and take the quiz to proceed</p>
+    </div>
+
+    <!-- Step 1: Lesson Content -->
+    <div class="step active" id="step1">
+        @if($lessons->count() > 0)
+            @php $lesson = $lessons->first() @endphp
+
+            <div class="lesson-card">
+                <h2 class="text-xl font-semibold mb-4">{{ $lesson->title }}</h2>
+
+                @if($lesson->description)
+                    <div class="mb-6 text-gray-700">
+                        {{ $lesson->description }}
                     </div>
-                    <div class="w-full step" id="step2">
-                        <form id="quiz_form" method="POST">
-                            <div class="flex flex-row items-center justify-between w-full mb-8">
-                                <div>
-                                    <button type="button" onclick="prevStep()" class="px-8 py-2 text-center text-white bg-green-800 rounded-full hover:bg-green-700 hover:cursor-pointer">Previous</button>
+                @endif
+
+                <!-- Video Section -->
+                @if($lesson->video_url)
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Video Lesson</h3>
+                        <div class="bg-black rounded-lg overflow-hidden">
+                            <video controls style="width: 100%; height: auto;">
+                                <source src="{{ asset('storage/' . $lesson->video_url) }}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        @if($lesson->video_length)
+                            <p class="text-sm text-gray-600 mt-2">Duration: {{ $lesson->video_length }}</p>
+                        @endif
+                    </div>
+                @endif
+
+                <!-- Documents Section -->
+                @if($lesson->documents && count($lesson->documents) > 0)
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Lesson Documents</h3>
+                        <div class="space-y-2">
+                            @foreach($lesson->documents as $document)
+                                <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                    <svg class="w-5 h-5 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <a href="{{ asset('storage/' . $document) }}"
+                                       download
+                                       class="text-blue-600 hover:text-blue-800 font-medium">
+                                        {{ basename($document) }}
+                                    </a>
                                 </div>
-                                <div>
-                                    <button type="submit" class="px-8 py-2 text-center text-white bg-green-800 rounded-full hover:bg-green-700 hover:cursor-pointer">Submit</button>
-                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Navigation -->
+                <div class="flex justify-between items-center pt-6 border-t">
+                    <div></div>
+                    @if(\App\Models\Quizz::where('lesson_id', $lesson->id)->count() > 0)
+                        <button onclick="nextStep()" class="btn btn-primary">
+                            Start Quiz →
+                        </button>
+                    @else
+                        <div class="text-gray-500">No quiz available for this lesson</div>
+                    @endif
+                </div>
+            </div>
+        @else
+            <div class="lesson-card text-center">
+                <p class="text-gray-500">No lessons found for this module.</p>
+            </div>
+        @endif
+    </div>
+
+    <!-- Step 2: Quiz Section -->
+    <div class="step" id="step2">
+        <!-- Timer Display Component -->
+        <div id="quiz-timer-container" class="quiz-timer-container hidden">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm opacity-90">⏰ Time Remaining:</span>
+                <div id="timer-display" class="timer-display">--:--</div>
+            </div>
+            <div class="timer-progress-bar">
+                <div id="timer-progress-fill" class="timer-progress-fill" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Warning Alert -->
+        <div id="timer-warning" class="timer-warning hidden">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <span id="warning-message">
+                Time is running out! Only <span id="warning-time">5 minutes</span> remaining.
+            </span>
+        </div>
+
+        <!-- Timeout Alert -->
+        <div id="timeout-alert" class="timer-expired hidden">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Time's up! Your quiz has been automatically submitted.</span>
+        </div>
+
+        <!-- Quiz Form -->
+        <form id="quiz_form" method="POST">
+            <div class="lesson-card">
+                <!-- Navigation Header -->
+                <div class="flex flex-row items-center justify-between w-full mb-8">
+                    <button type="button" onclick="prevStep()" class="btn btn-secondary">
+                        ← Previous
+                    </button>
+                    <button type="submit" id="submit-quiz-btn" class="btn btn-primary">
+                        Submit Quiz
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loading" class="hidden text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <p class="mt-2 text-gray-600">Submitting your quiz...</p>
+                </div>
+
+                <!-- Quiz Questions -->
+                <div id="selected_quiz">
+                    @if($lessons->count() > 0)
+                        @php
+                            $lesson = $lessons->first();
+                            $quizzes = \App\Models\Quizz::where('lesson_id', $lesson->id)->get();
+                        @endphp
+
+                        @if($quizzes->count() > 0)
+                            <div class="mb-8">
+                                <h2 class="text-xl font-bold text-gray-800">
+                                    {{ $quizzes->count() }} Multiple Choice Questions
+                                </h2>
+                                <p class="text-gray-600 mt-1">Choose the best answer for each question</p>
                             </div>
-                            <div id="loading" class="hidden">
-                                <div class="flex flex-col items-center justify-center">
-                                    <dotlottie-player src="{{ asset('anims/shimmer.json') }}" background="transparent" speed="1" class="w-full h-[300px]" loop autoplay></dotlottie-player>
-                                </div>
-                            </div>
-                            <div id="selected_quiz" class="">
-                                <div class="mb-8 font-bold text-md">{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->count() }} MULTIPLE CHOICE QUESTION</div>
-                                @foreach(\App\Models\Quizz::where('lesson_id',$lessons->first()->id ?? 0)->get() as $quiz)
-                                    <div id="question_asked" class="p-6 mb-10 text-sm font-semibold bg-green-800 bg-opacity-10">{{ $quiz->question }}</div>
+
+                            <!-- Hidden Form Fields -->
+                            <input type="hidden" name="user_id" value="{{ Auth::user()->id }}">
+                            <input type="hidden" name="quiz_total" value="{{ $quizzes->count() }}">
+                            <input type="hidden" id="module_id" name="module_id" value="{{ $lesson->module_id }}">
+                            <input type="hidden" id="lesson_id" name="lesson_id" value="{{ $lesson->id }}">
+
+                            @foreach($quizzes as $index => $quiz)
+                                <div class="mb-8">
+                                    <!-- Question -->
+                                    <div class="quiz-question">
+                                        <div class="flex items-start">
+                                            <span class="font-bold text-lg mr-3 text-green-700">{{ $index + 1 }}.</span>
+                                            <div class="flex-1">{{ $quiz->question }}</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Answer Options -->
                                     <fieldset>
-                                        <legend class="sr-only">Multiple Choice Question</legend>
-                                        <input hidden name="user_id" value="{{ Auth::user()->id }}">
-                                        <input hidden name="quiz_id" value="{{ $quiz->id }}">
-                                        <input hidden name="quiz_total" value="{{ \App\Models\Quizz::where('lesson_id',$lessons->first()->id)->count() }}">
-                                        <input hidden id="module_id" name="module_id" value="{{ $lessons->first()->module_id }}">
-                                        <input hidden id="lesson_id" name="lesson_id" value="{{ $lessons->first()->id }}">
+                                        <legend class="sr-only">Question {{ $index + 1 }}</legend>
+                                        <input type="hidden" name="quiz_id" value="{{ $quiz->id }}">
 
-                                        <div class="flex items-center mb-4">
-                                            <input id="a_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="A" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_a" for="a" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
-                                                A. {{ $quiz->answer_option_a }}
+                                        <div class="space-y-3">
+                                            <label class="quiz-option cursor-pointer">
+                                                <div class="flex items-center">
+                                                    <input type="radio"
+                                                           id="a_{{ $quiz->id }}"
+                                                           name="options_{{ $quiz->id }}"
+                                                           value="A"
+                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                                                           required>
+                                                    <span class="ml-3 text-sm font-medium text-gray-900">
+                                                        <strong>A.</strong> {{ $quiz->answer_option_a }}
+                                                    </span>
+                                                </div>
                                             </label>
-                                        </div>
 
-                                        <div class="flex items-center mb-4">
-                                            <input id="b_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="B" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:focus:bg-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_b" for="b" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
-                                                B. {{ $quiz->answer_option_b }}
+                                            <label class="quiz-option cursor-pointer">
+                                                <div class="flex items-center">
+                                                    <input type="radio"
+                                                           id="b_{{ $quiz->id }}"
+                                                           name="options_{{ $quiz->id }}"
+                                                           value="B"
+                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                                                           required>
+                                                    <span class="ml-3 text-sm font-medium text-gray-900">
+                                                        <strong>B.</strong> {{ $quiz->answer_option_b }}
+                                                    </span>
+                                                </div>
                                             </label>
-                                        </div>
 
-                                        <div class="flex items-center mb-4">
-                                            <input id="c_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="C" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_c" for="c" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
-                                                C. {{ $quiz->answer_option_c }}
+                                            <label class="quiz-option cursor-pointer">
+                                                <div class="flex items-center">
+                                                    <input type="radio"
+                                                           id="c_{{ $quiz->id }}"
+                                                           name="options_{{ $quiz->id }}"
+                                                           value="C"
+                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                                                           required>
+                                                    <span class="ml-3 text-sm font-medium text-gray-900">
+                                                        <strong>C.</strong> {{ $quiz->answer_option_c }}
+                                                    </span>
+                                                </div>
                                             </label>
-                                        </div>
 
-                                        <div class="flex items-center mb-4">
-                                            <input id="d_{{ $quiz->id }}" type="radio" name="options_{{ $quiz->id }}" value="D" class="w-4 h-4 border-gray-300 focus:ring-2 focus:ring-green-800 dark:focus-ring-green-600 dark:bg-gray-700 dark:border-gray-600" required>
-                                            <label id="answer_option_d" for="d" class="block text-sm font-medium text-gray-900 ms-2 dark:text-gray-300">
-                                                D. {{ $quiz->answer_option_d }}
+                                            <label class="quiz-option cursor-pointer">
+                                                <div class="flex items-center">
+                                                    <input type="radio"
+                                                           id="d_{{ $quiz->id }}"
+                                                           name="options_{{ $quiz->id }}"
+                                                           value="D"
+                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                                                           required>
+                                                    <span class="ml-3 text-sm font-medium text-gray-900">
+                                                        <strong>D.</strong> {{ $quiz->answer_option_d }}
+                                                    </span>
+                                                </div>
                                             </label>
                                         </div>
                                     </fieldset>
-                                @endforeach
-
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="text-center py-8">
+                                <p class="text-gray-500">No quiz questions found for this lesson.</p>
                             </div>
-                        </form>
-                    </div>
-                </div>
-                <div id="quiz_loading" class="hidden">
-                    <div class="flex flex-col items-center justify-center">
-                        <dotlottie-player src="{{ asset('anims/loading.json') }}" background="transparent" speed="1" class="w-full h-[200px]" loop autoplay></dotlottie-player>
-                    </div>
-
-                </div>
-                <div id="correct" class="hidden">
-                    <div class="flex flex-col items-center justify-start w-full py-5 bg-white rounded-lg shadow-md">
-                        <table class="table-auto">
-                            <thead>
-                            <tr>
-                                <th></th>
-                                <th></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr>
-                                <td>Score (percentage)</td>
-                                <td id="percentage"></td>
-                            </tr>
-                            <tr>
-                                <td>Total Questions</td>
-                                <td id="questions"></td>
-                            </tr>
-                            <tr>
-                                <td>Total Passed</td>
-                                <td id="passed"></td>
-                            </tr>
-                            <tr>
-                                <td>Total Failed</td>
-                                <td id="failed"></td>
-                            </tr>
-
-                            </tbody>
-                        </table>
-                    </div>
-
-                </div>
-                <div id="wrong" class="hidden">
-                    <div class="flex flex-col items-center justify-center w-full py-10 bg-white rounded-lg shadow-md">
-                        <div class="flex flex-col items-center justify-center">
-                            <dotlottie-player src="{{ asset('anims/wrong.json') }}" background="transparent" speed="1" class="w-full h-[50px]" loop autoplay></dotlottie-player>
-                        </div>
-                        <div class="mt-10 mb-16 font-bold text-center text-red-600 text-md">Wrong Answer</div>
-                        <button type="button" onclick="reTake()" class="px-6 py-2 text-sm text-center text-white bg-green-800 rounded-full hover:bg-green-700">Re-Take</button>
-                    </div>
-
+                        @endif
+                    @endif
                 </div>
             </div>
-            <div id="current_lessons" class="w-1/3 h-full p-6 overflow-y-scroll bg-green-800 rounded bg-opacity-5">
-                <div class="mb-4 font-bold text-md">LESSONS</div>
-                @foreach($lessons as $lesson)
-                    <div id="{{ $lesson->id }}" class="bg-green-800 rounded-md lesson-button bg-opacity-30"
-                         data-id="{{ $lesson->id }}"
-                         data-module-id="{{ $lesson->module_id }}"
-                         data-title="{{ $lesson->title }}"
-                         data-description="{{ $lesson->description }}"
-                         data-video-url="{{ $lesson->video_url }}"
-                         data-video-length="{{ $lesson->video_length }}"
-                         data-video-thumbnail="{{ $lesson->video_thumbnail }}"
-                         data-lesson-documents="{{ json_encode($lesson->documents) }}"
-                    >
-
-                        <div class="relative grid items-center w-full grid-cols-4 p-1 mb-3">
-                            <div class="w-[50px] h-[50px] col-span-1">
-                                <img src="{{ '/storage/'.$lesson->video_thumbnail }}" class="w-[50px] h-[50px] object-cover">
-                            </div>
-                            <div class="col-span-3 text-xs">{{ $lesson->title }}</div>
-                            <div class="absolute -top-4 -left-4">
-                                <img src="{{ asset('imgs/success.png') }}" class="h-10">
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </div>
+        </form>
     </div>
-    <script>
+</div>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const lessons = document.querySelectorAll('.lesson-button');
+<script>
+// Timer Management Class
+class QuizTimer {
+    constructor() {
+        this.timerInterval = null;
+        this.remainingSeconds = 0;
+        this.totalSeconds = 0;
+        this.warningShown = false;
+        this.settings = {};
+    }
 
-            // Create a link element for each document
+    async initialize(lessonId, userId) {
+        try {
+            console.log('Initializing timer for lesson:', lessonId);
 
-            const videoShow = document.getElementById("video_show");
-            const lessonDownloads = document.getElementById("lesson_downloads");
-            const form = document.getElementById("quiz_form");
-
-            const lessonDownloadLink0 = document.getElementById('lessonDownloadLink0');
-            const lessonDownloadLink1 = document.getElementById('lessonDownloadLink1');
-            const lessonDownloadLink2 = document.getElementById('lessonDownloadLink2');
-            const lessonDownloadLink3 = document.getElementById('lessonDownloadLink3');
-            const lessonDownloadLink4 = document.getElementById('lessonDownloadLink4');
-            const lessonDownloadLink5 = document.getElementById('lessonDownloadLink5');
-            const lessonDownloadLink6 = document.getElementById('lessonDownloadLink6');
-            const lessonDownloadLink7 = document.getElementById('lessonDownloadLink7');
-            const lessonDownloadLink8 = document.getElementById('lessonDownloadLink8');
-            const lessonDownloadLink9 = document.getElementById('lessonDownloadLink9');
-            const lessonDownloadLink10 = document.getElementById('lessonDownloadLink10');
-            const lessonDownloadLink11 = document.getElementById('lessonDownloadLink11');
-            const lessonDownloadLink12 = document.getElementById('lessonDownloadLink12');
-            const lessonDownloadLink13 = document.getElementById('lessonDownloadLink13');
-
-            document.querySelectorAll('.lesson-button').forEach(lesson => {
-                lesson.addEventListener('click', function() {
-                    videoShow.innerHTML = "";
-                    // Remove the class from all buttons
-                    lessons.forEach(btn => btn.classList.remove('border-r-8', 'border-green-800'));
-                    document.getElementById("correct").classList.add("hidden");
-                    document.getElementById("wrong").classList.add("hidden");
-
-                    prevStep();
-
-                    // Add the class to the clicked button
-                    this.classList.add('border-r-8', 'border-green-800','border-opacity-80');
-                    const selectedLesson = document.getElementById("selected_lesson");
-                    selectedLesson.classList.remove("hidden");
-
-                    const lessonId = this.id;
-                    const lessonTitle = this.getAttribute('data-title');
-                    const lessonDescription = this.getAttribute('data-description');
-                    const lessonVideoUrl = this.getAttribute('data-video-url');
-                    const lessonVideoLength = this.getAttribute('data-video-length');
-                    const lessonVideoThumbnail = this.getAttribute('data-video-thumbnail');
-                    const lessonDocumentsString = this.getAttribute('data-lesson-documents');
-
-
-                    const currentURL = window.location.href;
-                    const urlObject = new URL(currentURL);
-                    const baseURL = `${urlObject.protocol}//${urlObject.host}`;
-
-
-                    if(lessonVideoUrl !== "" || lessonVideoUrl !== null) {
-                        videoShow.insertAdjacentHTML("afterbegin", `
-                        <video
-                                id="my-video"
-                                class="video-js"
-                                controls
-                                preload="auto"
-                                width="640"
-                                height="264"
-                                data-setup="{}"
-                                poster="${baseURL + '/storage/' + lessonVideoThumbnail}"
-                                class="border-2 border-green-800"
-                            >
-                                <source id="source" type="video/mp4"  src="${lessonVideoUrl}"/>
-                                <p class="vjs-no-js">
-                                    To view this video please enable JavaScript, and consider upgrading to a
-                                    web browser that
-                                    <a href="https://videojs.com/html5-video-support/" target="_blank"
-                                    >supports HTML5 video</a
-                                    >
-                                </p>
-                            </video>
-                    `)
-                    }
-
-                    document.getElementById("video_title").innerText = this.getAttribute('data-title');
-                    document.getElementById("video_description").innerText = this.getAttribute('data-description');
-                    document.getElementById("module_id").value = this.getAttribute('data-module-id');
-                    document.getElementById("lesson_id").value = this.getAttribute('data-id');
-
-
-                    selectedLesson.classList.remove("hidden");
-
-                    // Convert the string to an array
-                    const lessonDocumentsArray = JSON.parse(lessonDocumentsString);
-
-                    // Convert the array of paths to an array of objects
-                    const lessonDocuments = lessonDocumentsArray.map(documentPath => {
-                        return {
-                            path: documentPath,
-                            name: documentPath.split('/').pop() // Get the file name
-                        };
-                    });
-
-                    // Now your existing code can be modified to work with lessonDocuments
-                    const lessonDownloads = document.getElementById("lesson_downloads");
-
-                    if (Array.isArray(lessonDocuments) && lessonDocuments.length > 0) {
-                        console.log(lessonDocuments.length);
-                        lessonDocuments.forEach((document,index) => {
-                            // Create a unique ID for each download link using the index
-                            const fileUrl = `${baseURL}/storage/${document.path}`;
-                            const fileName = document.name;
-
-                            if(index === 0) {
-                                lessonDownloadLink0.href = fileUrl;
-                                lessonDownloadLink0.download = fileName;
-                                lessonDownloadLink0.innerText = fileName;
-                            }else if(index === 1)
-                            {
-                                lessonDownloadLink1.href = fileUrl;
-                                lessonDownloadLink1.download = fileName;
-                                lessonDownloadLink1.innerText = fileName;
-                            }else if(index === 2)
-                            {
-                                lessonDownloadLink2.href = fileUrl;
-                                lessonDownloadLink2.download = fileName;
-                                lessonDownloadLink2.innerText = fileName;
-                            }else if(index === 3)
-                            {
-                                lessonDownloadLink3.href = fileUrl;
-                                lessonDownloadLink3.download = fileName;
-                                lessonDownloadLink3.innerText = fileName;
-                            }else if(index === 4)
-                            {
-                                lessonDownloadLink4.href = fileUrl;
-                                lessonDownloadLink4.download = fileName;
-                                lessonDownloadLink4.innerText = fileName;
-                            }else if(index === 5)
-                            {
-                                lessonDownloadLink5.href = fileUrl;
-                                lessonDownloadLink5.download = fileName;
-                                lessonDownloadLink5.innerText = fileName;
-                            }else if(index === 6)
-                            {
-                                lessonDownloadLink6.href = fileUrl;
-                                lessonDownloadLink6.download = fileName;
-                                lessonDownloadLink6.innerText = fileName;
-                            }else if(index === 7)
-                            {
-                                lessonDownloadLink7.href = fileUrl;
-                                lessonDownloadLink7.download = fileName;
-                                lessonDownloadLink7.innerText = fileName;
-                            }else if(index === 8)
-                            {
-                                lessonDownloadLink8.href = fileUrl;
-                                lessonDownloadLink8.download = fileName;
-                                lessonDownloadLink8.innerText = fileName;
-                            }else if(index === 9)
-                            {
-                                lessonDownloadLink9.href = fileUrl;
-                                lessonDownloadLink9.download = fileName;
-                                lessonDownloadLink9.innerText = fileName;
-                            }else if(index === 10)
-                            {
-                                lessonDownloadLink10.href = fileUrl;
-                                lessonDownloadLink10.download = fileName;
-                                lessonDownloadLink10.innerText = fileName;
-                            }
-
-
-                            //
-                        });
-                    }
-
-                    // List downloadable documents
-
-                    // if (Array.isArray(lessonDocuments) && lessonDocuments.length > 0 ){
-                    //     lessonDocuments.forEach(document => {
-                    //         const fileUrl = `${baseURL}/storage/${document.path}`;
-                    //         const fileName = document.name;
-                    //
-                    //         //lessonDownloads.href = fileUrl;
-                    //         lessonDownloads.innerText = fileName;
-                    //
-                    //     });
-                    // }
-
-                    //query the quiz
-                    //code to query module summaries
-                    const apiUrl = '/api/quiz';
-
-                    const postId = {
-                        lesson_id: lessonId
-                    };
-
-                    fetch(apiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(postId)
-                    }).then(response => {
-                        document.getElementById('loading').classList.add("hidden");
-
-                        if (response.status === 200) {
-                            // Parse the JSON response
-                            return response.json();
-                        } else if (response.status === 400) {
-                            // Handle client error (status code 400)
-                            throw new Error('Bad request');
-                        } else {
-                            // Handle other status codes
-                            throw new Error('Unexpected error');
-                        }
-                    }).then(data => {
-                        if (data.success) {
-                            // Handle success (status code 200 and success flag is true)
-                            //document.getElementById('lessons_details').classList.remove("hidden");
-                            // document.getElementById('question_asked').innerText = data.quiz.question
-                            // document.getElementById('answer_option_a').innerText = data.quiz.answer_option_a;
-                            // document.getElementById('answer_option_b').innerText = data.quiz.answer_option_b;
-                            // document.getElementById('answer_option_c').innerText = data.quiz.answer_option_c;
-                            // document.getElementById('answer_option_d').innerText = data.quiz.answer_option_d;
-                        } else {
-                            throw new Error('Response success flag is false');
-                        }
-                    }).catch(error => {
-                        console.error('Error:', error);
-                    });
-
-                });
+            // Start quiz attempt and get timer settings
+            const response = await fetch('/api/start-quiz-attempt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    lesson_id: lessonId,
+                    user_id: userId
+                })
             });
 
-            form.addEventListener('submit', function(event) {
-                event.preventDefault(); // Prevent the default form submission
-                document.getElementById('selected_lesson').classList.add('hidden');
-                document.getElementById('loading').classList.remove("hidden");
+            const data = await response.json();
+            console.log('Timer response:', data);
 
-                const percentage = document.getElementById('percentage');
-                const questions = document.getElementById('questions');
-                const passed = document.getElementById('passed');
-                const failed = document.getElementById('failed');
+            if (data.success && data.timer_settings.enabled) {
+                this.settings = data.timer_settings;
 
-                // Custom form submission logic
-                const formData = new FormData(form);
-                const formObject = Object.fromEntries(formData.entries()); // Convert FormData to a plain object
+                // Calculate remaining time
+                const serverTime = new Date(data.server_time);
+                const expiresAt = new Date(data.timer_expires_at);
 
-                //send for marking
-                //code to query module summaries
-                const apiUrl = '/api/mark';
+                this.remainingSeconds = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+                this.totalSeconds = this.settings.duration_seconds;
 
-                fetch(apiUrl, {
+                this.showTimerDisplay();
+                this.startTimer();
+            }
+        } catch (error) {
+            console.error('Timer initialization failed:', error);
+        }
+    }
+
+    startTimer() {
+        if (this.remainingSeconds <= 0) {
+            this.handleTimeout();
+            return;
+        }
+
+        this.timerInterval = setInterval(() => {
+            this.remainingSeconds--;
+            this.updateDisplay();
+
+            // Show warning
+            if (this.settings.show_warning && !this.warningShown) {
+                if (this.remainingSeconds <= this.settings.warning_time_seconds) {
+                    this.showWarning();
+                }
+            }
+
+            // Handle timeout
+            if (this.remainingSeconds <= 0) {
+                this.handleTimeout();
+            }
+        }, 1000);
+    }
+
+    updateDisplay() {
+        const minutes = Math.floor(this.remainingSeconds / 60);
+        const seconds = this.remainingSeconds % 60;
+        const displayTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = displayTime;
+        }
+
+        // Update progress bar
+        const progressFill = document.getElementById('timer-progress-fill');
+        if (progressFill && this.totalSeconds > 0) {
+            const percentage = (this.remainingSeconds / this.totalSeconds) * 100;
+            progressFill.style.width = `${Math.max(0, percentage)}%`;
+
+            // Change colors
+            if (percentage <= 10) {
+                progressFill.style.background = 'linear-gradient(90deg, #F44336, #E91E63)';
+            } else if (percentage <= 25) {
+                progressFill.style.background = 'linear-gradient(90deg, #FF9800, #FFC107)';
+            } else {
+                progressFill.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+            }
+        }
+    }
+
+    showTimerDisplay() {
+        const timerContainer = document.getElementById('quiz-timer-container');
+        if (timerContainer) {
+            timerContainer.classList.remove('hidden');
+        }
+    }
+
+    showWarning() {
+        this.warningShown = true;
+        const warningElement = document.getElementById('timer-warning');
+        const warningTimeElement = document.getElementById('warning-time');
+
+        if (warningElement && warningTimeElement) {
+            const warningMinutes = Math.ceil(this.settings.warning_time_seconds / 60);
+            warningTimeElement.textContent = `${warningMinutes} minute${warningMinutes > 1 ? 's' : ''}`;
+            warningElement.classList.remove('hidden');
+
+            setTimeout(() => {
+                warningElement.classList.add('hidden');
+            }, 10000);
+        }
+    }
+
+    handleTimeout() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+
+        const timeoutAlert = document.getElementById('timeout-alert');
+        if (timeoutAlert) {
+            timeoutAlert.classList.remove('hidden');
+        }
+
+        // Disable form
+        const form = document.getElementById('quiz_form');
+        if (form) {
+            const inputs = form.querySelectorAll('input, button');
+            inputs.forEach(input => {
+                if (input.type !== 'hidden') {
+                    input.disabled = true;
+                }
+            });
+        }
+
+        // Auto-submit if enabled
+        if (this.settings.auto_submit) {
+            setTimeout(() => {
+                this.autoSubmitQuiz();
+            }, 3000);
+        }
+    }
+
+    async autoSubmitQuiz() {
+        const form = document.getElementById('quiz_form');
+        if (form) {
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/api/marking', {
                     method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formObject) // Send as JSON
-                }).then(response => {
-
-                    if (response.status === 200) {
-                        // Parse the JSON response
-                        return response.json();
-                    } else if (response.status === 400) {
-                        // Handle client error (status code 400)
-                        throw new Error('Bad request');
-                    } else {
-                        // Handle other status codes
-                        throw new Error('Unexpected error');
-                    }
-                }).then(data => {
-                    if (data.success) {
-                        percentage.innerText = "";
-                        questions.innerText = "";
-                        passed.innerText = "";
-                        failed.innerText = "";
-
-                        // Handle success (status code 200 and success flag is true)
-                        //document.getElementById('lessons_details').classList.remove("hidden");
-                        document.getElementById("correct").classList.remove("hidden");
-                        document.getElementById("wrong").classList.add("hidden");
-                        document.getElementById("loading").classList.add("hidden");
-
-                        console.log(data)
-
-                        percentage.innerText = data.pass_percentage + '%';
-                        questions.innerText = data.total_questions;
-                        passed.innerText = data.total_correct;
-                        failed.innerText = data.total_wrong;
-                    } else {
-                        throw new Error('Response success flag is false');
-                    }
-                }).catch(error => {
-                    console.error('Error:', error);
+                    body: formData
                 });
 
-            });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Quiz auto-submitted due to timeout. Score: ' + result.pass_percentage + '%');
+                    window.location.reload();
+                } else {
+                    alert('Auto-submit failed: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Auto-submit failed:', error);
+                alert('Auto-submit failed. Please try manual submission.');
+            }
+        }
+    }
+}
 
+// Global timer instance
+let quizTimer = null;
+let currentStep = 1;
 
+// Navigation Functions
+function nextStep() {
+    if (currentStep === 1) {
+        // Hide step 1, show step 2
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+        currentStep = 2;
+
+        // Start timer when quiz becomes visible
+        startQuizTimer();
+    }
+}
+
+function prevStep() {
+    if (currentStep === 2) {
+        // Stop timer if running
+        if (quizTimer?.timerInterval) {
+            clearInterval(quizTimer.timerInterval);
+            quizTimer = null;
+        }
+
+        // Hide step 2, show step 1
+        document.getElementById('step2').classList.remove('active');
+        document.getElementById('step1').classList.add('active');
+        currentStep = 1;
+
+        // Reset any alerts
+        document.getElementById('timer-warning')?.classList.add('hidden');
+        document.getElementById('timeout-alert')?.classList.add('hidden');
+        document.getElementById('quiz-timer-container')?.classList.add('hidden');
+    }
+}
+
+// Function to start timer
+function startQuizTimer() {
+    const lessonId = document.getElementById('lesson_id')?.value;
+    const userId = document.querySelector('input[name="user_id"]')?.value;
+
+    console.log('Starting timer - Lesson:', lessonId, 'User:', userId);
+
+    if (lessonId && userId) {
+        quizTimer = new QuizTimer();
+        quizTimer.initialize(lessonId, userId);
+    } else {
+        console.log('Timer not started - missing lesson_id or user_id');
+    }
+}
+
+// Setup form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('quiz_form');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            console.log('Quiz form submitted');
+
+            // Stop timer
+            if (quizTimer?.timerInterval) {
+                clearInterval(quizTimer.timerInterval);
+            }
+
+            // Show loading
+            document.getElementById('loading')?.classList.remove('hidden');
+            document.getElementById('selected_quiz')?.classList.add('hidden');
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/api/marking', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log('Quiz submission result:', result);
+
+                if (response.status === 408) {
+                    alert('Quiz time has expired. Your answers could not be submitted.');
+                    return;
+                }
+
+                if (result.success) {
+                    alert('Quiz submitted successfully! Score: ' + result.pass_percentage + '%\nStatus: ' + result.pass_status);
+                    // Optionally redirect or reload
+                    window.location.reload();
+                } else {
+                    throw new Error(result.message || 'Submission failed');
+                }
+            } catch (error) {
+                console.error('Quiz submission error:', error);
+                alert('Failed to submit quiz. Please try again.');
+
+                // Re-enable form
+                document.getElementById('loading')?.classList.add('hidden');
+                document.getElementById('selected_quiz')?.classList.remove('hidden');
+
+                // Restart timer if it was running
+                if (quizTimer && quizTimer.remainingSeconds > 0) {
+                    quizTimer.startTimer();
+                }
+            }
         });
+    }
 
-        let currentStep = 0;
-        const steps = document.querySelectorAll('.step');
+    // Initialize step display
+    document.getElementById('step1')?.classList.add('active');
+    document.getElementById('step2')?.classList.remove('active');
+});
+</script>
 
-        function showStep(step) {
-            steps.forEach((element, index) => {
-                element.classList.toggle('active', index === step);
-            });
-        }
-
-        function nextStep() {
-            if (currentStep < steps.length - 1) {
-                currentStep++;
-                showStep(currentStep);
-            }
-        }
-
-        function prevStep() {
-            if (currentStep > 0) {
-                currentStep--;
-                showStep(currentStep);
-            }
-        }
-
-        function submitWizard() {
-            alert('Wizard submitted!');
-            // Add form submission logic here if needed
-            const answer = document.getElementById("option").value;
-            const user_id = document.getElementById("user_id").value;
-        }
-
-        // Initialize the wizard
-        showStep(currentStep);
-
-        function reTake()
-        {
-            document.getElementById("wrong").classList.add("hidden");
-            document.getElementById('selected_lesson').classList.remove('hidden');
-            prevStep();
-        }
-    </script>
 </x-filament-panels::page>

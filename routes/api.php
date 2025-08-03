@@ -29,6 +29,11 @@ Route::post('/lesson', [ModuleController::class, 'getLesson']);
 Route::get('/quiz-history', [ModuleController::class, 'getQuizHistory']);
 Route::post('/track-document-download', [ModuleController::class, 'trackDocumentDownload']);
 
+// New quiz timer routes
+Route::post('/start-quiz-attempt', [ModuleController::class, 'startQuizAttempt']);
+Route::post('/validate-quiz-timer', [ModuleController::class, 'validateQuizTimer']);
+Route::get('/quiz-timer-status/{attemptId}', [ModuleController::class, 'getQuizTimerStatus']);
+
 // Activity tracking routes (can be used without authentication for frontend tracking)
 Route::prefix('activity')->group(function () {
     Route::post('/track', [ActivityTrackingController::class, 'track']);

@@ -14,14 +14,15 @@ return new class extends Migration
         Schema::create('quizzs', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger("lesson_id");
-            $table->text("question");
+            $table->text("question")->nullable();
             $table->string("question_image")->nullable();
-            $table->string("correct_answer");
-            $table->text("answer_option_a");
-            $table->text("answer_option_b");
-            $table->text("answer_option_c");
-            $table->text("answer_option_d");
+            $table->string("correct_answer")->nullable();
+            $table->text("answer_option_a")->nullable();
+            $table->text("answer_option_b")->nullable();
+            $table->text("answer_option_c")->nullable();
+            $table->text("answer_option_d")->nullable();
             $table->string("duration")->nullable();
+            $table->integer('question_duration_seconds')->default(60);
             $table->timestamps();
         });
     }

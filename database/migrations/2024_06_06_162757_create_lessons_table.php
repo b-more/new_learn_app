@@ -13,13 +13,19 @@ return new class extends Migration
     {
         Schema::create('lessons', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger("module_id");
-            $table->string("title");
-            $table->text("description");
+            $table->unsignedBigInteger("module_id")->nullable();
+            $table->string("title")->nullable();
+            $table->text("description")->nullable();
             $table->string("video_url")->nullable();
+            $table->integer('order')->default(1);
             $table->string("video_length")->nullable();
-            $table->string("video_thumbnail");
+            $table->string("video_thumbnail")->nullable();
             $table->json('documents')->nullable(); // Store multiple document paths
+             $table->boolean('quiz_timer_enabled')->default(true);
+            $table->integer('quiz_timer_minutes')->default(30);
+            $table->boolean('show_timer_warning')->default(true);
+            $table->integer('warning_time_minutes')->default(5);
+            $table->boolean('auto_submit_on_timeout')->default(true);
             $table->timestamps();
         });
     }
