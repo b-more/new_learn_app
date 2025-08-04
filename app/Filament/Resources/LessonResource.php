@@ -1,8 +1,10 @@
 <?php
+// app/Filament/Resources/LessonResource.php - Updated with improved file upload
 
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\LessonResource\Pages;
+use App\Filament\Resources\LessonResource\RelationManagers;
 use App\Models\Lesson;
 use App\Models\Module;
 use Filament\Forms;
@@ -10,134 +12,158 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Support\Enums\Alignment;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Grid;
+use Filament\Notifications\Notification;
 
 class LessonResource extends Resource
 {
     protected static ?string $model = Lesson::class;
-
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
+    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
     protected static ?string $navigationGroup = 'Content Management';
-
     protected static ?int $navigationSort = 2;
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return checkReadLessonPermission();
-    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                // Main Lesson Details Section
-                Forms\Components\Section::make('Lesson Details')
+                // Basic Information Section
+                Section::make('Lesson Information')
+                    ->description('Basic lesson details and content')
                     ->schema([
-                        Forms\Components\Select::make('module_id')
-                            ->options(Module::all()->pluck('title', 'id')->toArray())
-                            ->required()
-                            ->label('Module Name')
-                            ->searchable(),
+                        Grid::make(2)
+                            ->schema([
+                                Forms\Components\Select::make('module_id')
+                                    ->label('Module')
+                                    ->options(Module::all()->pluck('title', 'id'))
+                                    ->required()
+                                    ->searchable()
+                                    ->preload(),
+
+                                Forms\Components\TextInput::make('order')
+                                    ->label('Lesson Order')
+                                    ->numeric()
+                                    ->default(1)
+                                    ->minValue(1)
+                                    ->required(),
+                            ]),
 
                         Forms\Components\TextInput::make('title')
-                            ->required()
                             ->label('Lesson Title')
-                            ->maxLength(255),
+                            ->required()
+                            ->maxLength(255)
+                            ->columnSpanFull(),
 
                         Forms\Components\Textarea::make('description')
-                            ->required()
                             ->label('Lesson Description')
+                            ->required()
                             ->rows(3)
                             ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('video_length')
                             ->label('Video Length')
-                            ->placeholder('e.g., 10:30'),
+                            ->placeholder('e.g., 10:30')
+                            ->helperText('Format: MM:SS or HH:MM:SS'),
+                    ]),
 
-                        Forms\Components\TextInput::make('order')
-                            ->label('Lesson Order')
-                            ->numeric()
-                            ->default(1)
-                            ->minValue(1),
-                    ])
-                    ->columns(2),
-
-                // Media Upload Section
-                Forms\Components\Section::make('Media & Documents')
+                // Media Upload Section with improved configuration
+                Section::make('Media & Documents')
+                    ->description('Upload lesson thumbnail, video, and documents')
                     ->schema([
                         Forms\Components\FileUpload::make('video_thumbnail')
                             ->label('Lesson Thumbnail/Poster')
+                            ->disk('public')
                             ->directory('thumbnail')
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp', 'image/bmp'])
-                            ->required()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+                            ->image()
                             ->imageEditor()
-                            ->imageEditorAspectRatios(['5:4'])
+                            ->imageEditorAspectRatios(['16:9', '4:3', '1:1'])
+                            ->maxSize(5120) // 5MB
+                            ->required()
+                            ->helperText('Upload a thumbnail image for this lesson (max 5MB)')
                             ->columnSpanFull(),
 
                         Forms\Components\FileUpload::make('video_url')
-                            ->label('Video')
+                            ->label('Video File')
+                            ->disk('public')
                             ->directory('lessons')
-                            ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mpeg', 'video/quicktime'])
-                            ->maxSize(102400) // 100MB in kilobytes
+                            ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mpeg', 'video/quicktime', 'video/x-msvideo'])
+                            ->maxSize(512000) // 500MB
+                            ->helperText('Upload lesson video file (max 500MB). Supported formats: MP4, AVI, MPEG, MOV')
                             ->columnSpanFull(),
 
                         Forms\Components\FileUpload::make('documents')
-                            ->label('Lesson Documents')
-                            ->directory('lessons/documents')
-                            ->multiple()
-                            ->preserveFilenames()
-                            ->acceptedFileTypes(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'xlsx', 'xls'])
-                            ->columnSpanFull(),
+    ->label('Lesson Documents')
+    ->disk('public')
+    ->directory('lessons/documents')
+    ->multiple()
+    ->reorderable()
+    ->preserveFilenames()
+    ->acceptedFileTypes([
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ])
+    ->maxSize(51200)
+    ->maxFiles(10)
+    ->columnSpanFull()
+    ->downloadable()
+    ->previewable(),
                     ]),
 
                 // Quiz Timer Settings Section
-                Forms\Components\Section::make('Quiz Timer Settings')
+                Section::make('Quiz Timer Settings')
                     ->description('Configure timer settings for quizzes in this lesson')
                     ->schema([
-                        Forms\Components\Toggle::make('quiz_timer_enabled')
-                            ->label('Enable Quiz Timer')
-                            ->default(true)
-                            ->live()
-                            ->helperText('Enable or disable timer for all quizzes in this lesson'),
-
-                        Forms\Components\Grid::make(2)
+                        Grid::make(2)
                             ->schema([
+                                Forms\Components\Toggle::make('quiz_timer_enabled')
+                                    ->label('Enable Quiz Timer')
+                                    ->default(true)
+                                    ->live()
+                                    ->helperText('Enable/disable timer for quizzes in this lesson'),
+
                                 Forms\Components\TextInput::make('quiz_timer_minutes')
-                                    ->label('Quiz Duration (Minutes)')
+                                    ->label('Timer Duration (minutes)')
                                     ->numeric()
                                     ->default(30)
                                     ->minValue(1)
-                                    ->maxValue(300)
-                                    ->required()
-                                    ->visible(fn (Forms\Get $get) => $get('quiz_timer_enabled'))
-                                    ->helperText('Total time allowed for completing all quiz questions'),
-
-                                Forms\Components\Toggle::make('auto_submit_on_timeout')
-                                    ->label('Auto-submit on Timeout')
-                                    ->default(true)
-                                    ->visible(fn (Forms\Get $get) => $get('quiz_timer_enabled'))
-                                    ->helperText('Automatically submit quiz when time expires'),
+                                    ->maxValue(180)
+                                    ->visible(fn (Forms\Get $get): bool => $get('quiz_timer_enabled'))
+                                    ->helperText('How long users have to complete the quiz'),
                             ]),
 
-                        Forms\Components\Fieldset::make('Warning Settings')
+                        Grid::make(2)
                             ->schema([
                                 Forms\Components\Toggle::make('show_timer_warning')
-                                    ->label('Show Time Warning')
+                                    ->label('Show Timer Warning')
                                     ->default(true)
                                     ->live()
-                                    ->visible(fn (Forms\Get $get) => $get('quiz_timer_enabled'))
-                                    ->helperText('Show warning when time is running low'),
+                                    ->visible(fn (Forms\Get $get): bool => $get('quiz_timer_enabled'))
+                                    ->helperText('Show warning when time is running out'),
 
                                 Forms\Components\TextInput::make('warning_time_minutes')
-                                    ->label('Warning Time (Minutes)')
+                                    ->label('Warning Time (minutes)')
                                     ->numeric()
                                     ->default(5)
                                     ->minValue(1)
-                                    ->maxValue(60)
-                                    ->visible(fn (Forms\Get $get) => $get('quiz_timer_enabled') && $get('show_timer_warning'))
+                                    ->visible(fn (Forms\Get $get): bool => $get('quiz_timer_enabled') && $get('show_timer_warning'))
                                     ->helperText('Show warning when this many minutes remain'),
-                            ])
-                            ->visible(fn (Forms\Get $get) => $get('quiz_timer_enabled')),
+                            ]),
+
+                        Forms\Components\Toggle::make('auto_submit_on_timeout')
+                            ->label('Auto-submit on Timeout')
+                            ->default(true)
+                            ->visible(fn (Forms\Get $get): bool => $get('quiz_timer_enabled'))
+                            ->helperText('Automatically submit quiz when timer expires')
+                            ->columnSpanFull(),
                     ])
                     ->collapsible()
                     ->collapsed(),
@@ -148,100 +174,60 @@ class LessonResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('module_id')
-                    ->formatStateUsing(function ($record) {
-                        return Module::where('id', $record->module_id)->first()->title ?? "";
-                    })
-                    ->label('Module')
-                    ->sortable()
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('title')
-                    ->searchable()
-                    ->label('Lesson Title')
-                    ->weight('bold'),
-
-                Tables\Columns\TextColumn::make('order')
-                    ->label('Order')
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
                     ->sortable(),
 
-                // Display video URL as a link or file name
-                Tables\Columns\TextColumn::make('video_url')
-                    ->label('Video')
-                    ->formatStateUsing(function ($record) {
-                        return $record->video_url ? basename($record->video_url) : 'No Video';
-                    })
-                    ->url(function ($record) {
-                        return $record->video_url ? asset('storage/' . $record->video_url) : null;
-                    })
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('video_length')
-                    ->searchable()
-                    ->label('Video Length'),
-
-                // Display video thumbnail as an image
                 Tables\Columns\ImageColumn::make('video_thumbnail')
                     ->label('Thumbnail')
                     ->disk('public')
-                    ->visible(fn($record) => $record->video_thumbnail ?? ""),
+                    ->square()
+                    ->size(50),
 
-                // Timer settings columns
+                Tables\Columns\TextColumn::make('title')
+                    ->label('Title')
+                    ->searchable()
+                    ->sortable()
+                    ->limit(50),
+
+                Tables\Columns\TextColumn::make('module.title')
+                    ->label('Module')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('order')
+                    ->label('Order')
+                    ->sortable()
+                    ->alignCenter(),
+
+                Tables\Columns\TextColumn::make('video_length')
+                    ->label('Duration')
+                    ->alignCenter(),
+
+                Tables\Columns\IconColumn::make('video_url')
+                    ->label('Video')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-play-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->alignCenter(),
+
+                Tables\Columns\TextColumn::make('document_count')
+                    ->label('Documents')
+                    ->alignCenter()
+                    ->badge()
+                    ->color(fn (int $state): string => match (true) {
+                        $state === 0 => 'gray',
+                        $state <= 3 => 'warning',
+                        default => 'success',
+                    }),
+
                 Tables\Columns\IconColumn::make('quiz_timer_enabled')
                     ->label('Timer')
                     ->boolean()
-                    ->tooltip('Quiz timer enabled'),
-
-                Tables\Columns\TextColumn::make('quiz_timer_minutes')
-                    ->label('Timer Duration')
-                    ->formatStateUsing(function ($state, $record) {
-                        if (!$record->quiz_timer_enabled) {
-                            return 'No limit';
-                        }
-                        $minutes = $record->quiz_timer_minutes;
-                        if ($minutes < 60) {
-                            return "{$minutes} min";
-                        } else {
-                            $hours = floor($minutes / 60);
-                            $remainingMinutes = $minutes % 60;
-                            return $remainingMinutes > 0 ? "{$hours}h {$remainingMinutes}m" : "{$hours}h";
-                        }
-                    })
-                    ->badge()
-                    ->color(fn ($record) => $record->quiz_timer_enabled ? 'success' : 'gray'),
-
-                // Quiz count (if you want to show quiz count)
-                Tables\Columns\TextColumn::make('quizzes_count')
-                    ->label('Quiz Questions')
-                    ->formatStateUsing(function ($record) {
-                        return \App\Models\Quizz::where('lesson_id', $record->id)->count();
-                    })
-                    ->badge()
-                    ->color('primary'),
-
-                // Display documents as download links
-                Tables\Columns\TextColumn::make('documents')
-                    ->label('Documents')
-                    ->formatStateUsing(function ($record) {
-                        if ($record->documents) {
-                            $documents = is_string($record->documents) ? json_decode($record->documents, true) : $record->documents;
-                            if (is_array($documents)) {
-                                return collect($documents)->map(function ($document) {
-                                    return "<a href='" . asset('storage/' . $document) . "' download>" . basename($document) . "</a>";
-                                })->implode(', ');
-                            }
-                        }
-                        return 'No Documents';
-                    })
-                    ->html()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->alignCenter(),
 
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('updated_at')
+                    ->label('Created')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -249,47 +235,31 @@ class LessonResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('module_id')
                     ->label('Module')
-                    ->options(Module::all()->pluck('title', 'id')->toArray()),
+                    ->options(Module::all()->pluck('title', 'id'))
+                    ->searchable(),
 
                 Tables\Filters\TernaryFilter::make('quiz_timer_enabled')
                     ->label('Timer Enabled'),
+
+                Tables\Filters\Filter::make('has_video')
+                    ->label('Has Video')
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('video_url')),
+
+                Tables\Filters\Filter::make('has_documents')
+                    ->label('Has Documents')
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('documents')),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->successRedirectUrl('lessons'),
-
-                // Timer Preview Action (optional - remove if you don't want it)
-                Tables\Actions\Action::make('timer_info')
-                    ->label('Timer Info')
-                    ->icon('heroicon-o-clock')
-                    ->color('info')
-                    ->action(function ($record) {
-                        // You can add a notification or modal here
-                        if ($record->quiz_timer_enabled) {
-                            $duration = $record->quiz_timer_minutes;
-                            $warning = $record->show_timer_warning ? "Warning at {$record->warning_time_minutes} min" : "No warning";
-                            $autoSubmit = $record->auto_submit_on_timeout ? "Auto-submit enabled" : "Manual submit only";
-
-                            \Filament\Notifications\Notification::make()
-                                ->title('Quiz Timer Settings')
-                                ->body("Duration: {$duration} minutes<br>{$warning}<br>{$autoSubmit}")
-                                ->info()
-                                ->send();
-                        } else {
-                            \Filament\Notifications\Notification::make()
-                                ->title('Timer Disabled')
-                                ->body('No time limit for this lesson\'s quizzes')
-                                ->info()
-                                ->send();
-                        }
-                    }),
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('order', 'asc');
+            ->defaultSort('order');
     }
 
     public static function getRelations(): array
@@ -304,7 +274,13 @@ class LessonResource extends Resource
         return [
             'index' => Pages\ListLessons::route('/'),
             'create' => Pages\CreateLesson::route('/create'),
+            //'view' => Pages\ViewLesson::route('/{record}'),
             'edit' => Pages\EditLesson::route('/{record}/edit'),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
     }
 }

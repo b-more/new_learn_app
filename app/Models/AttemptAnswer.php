@@ -12,8 +12,8 @@ class AttemptAnswer extends Model
 
     protected $fillable = [
         'user_id',
-        'lesson_id',
         'module_id',
+        'lesson_id',
         'quiz_id',
         'user_answer',
         'correct_answer',
@@ -36,21 +36,21 @@ class AttemptAnswer extends Model
         'timer_expires_at' => 'datetime',
         'timer_settings' => 'array',
         'detailed_answers' => 'array',
-        'auto_mark' => 'integer',
-        'time_taken_seconds' => 'integer',
+        'score_percentage' => 'decimal:2',
+        'auto_mark' => 'boolean',
+        'user_id' => 'integer',
+        'module_id' => 'integer',
+        'lesson_id' => 'integer',
+        'quiz_id' => 'integer',
         'total_questions' => 'integer',
         'correct_answers' => 'integer',
-        'score_percentage' => 'float'
+        'time_taken_seconds' => 'integer'
     ];
 
+    // Relationships
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function lesson()
-    {
-        return $this->belongsTo(Lesson::class);
     }
 
     public function module()
@@ -58,9 +58,51 @@ class AttemptAnswer extends Model
         return $this->belongsTo(Module::class);
     }
 
+    public function lesson()
+    {
+        return $this->belongsTo(Lesson::class);
+    }
+
     public function quiz()
     {
-        return $this->belongsTo(Quizz::class, 'quiz_id');
+        return $this->belongsTo(Quizz::class);
+    }
+
+    // Helper methods
+    public function isPassed()
+    {
+        return $this->score_percentage >= 70;
+    }
+
+    public function getFormattedScore()
+    {
+        return number_format($this->score_percentage, 1) . '%';
+    }
+
+    public function getFormattedTimeTaken()
+    {
+        if (!$this->time_taken_seconds) {
+            return 'N/A';
+        }
+
+        $minutes = floor($this->time_taken_seconds / 60);
+        $seconds = $this->time_taken_seconds % 60;
+
+        if ($minutes > 0) {
+            return "{$minutes}m {$seconds}s";
+        } else {
+            return "{$seconds}s";
+        }
+    }
+
+    public function getStatusBadgeColor()
+    {
+        return match($this->attempt_status) {
+            'started' => 'warning',
+            'completed' => $this->isPassed() ? 'success' : 'danger',
+            'timed_out' => 'danger',
+            default => 'gray'
+        };
     }
 
     /**
@@ -108,21 +150,7 @@ class AttemptAnswer extends Model
     /**
      * Get formatted time taken
      */
-    public function getFormattedTimeTaken()
-    {
-        if (!$this->time_taken_seconds) {
-            return 'N/A';
-        }
 
-        $minutes = floor($this->time_taken_seconds / 60);
-        $seconds = $this->time_taken_seconds % 60;
-
-        if ($minutes > 0) {
-            return "{$minutes}m {$seconds}s";
-        } else {
-            return "{$seconds}s";
-        }
-    }
 
     /**
      * Check if attempt is in progress

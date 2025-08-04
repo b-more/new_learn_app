@@ -2,7 +2,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
-/* Timer Styles */
+/* Enhanced Quiz Styles */
 .quiz-timer-container {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 12px;
@@ -68,7 +68,7 @@
     display: block;
 }
 
-/* Additional styling for quiz */
+/* Quiz Container */
 .quiz-container {
     max-width: 800px;
     margin: 0 auto;
@@ -83,27 +83,106 @@
     margin-bottom: 20px;
 }
 
+/* Enhanced Quiz Question Styling */
 .quiz-question {
     background: rgba(34, 197, 94, 0.1);
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 24px;
     font-weight: 600;
+    border-left: 4px solid #22c55e;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.question-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.question-number {
+    font-weight: bold;
+    color: #22c55e;
+    font-size: 18px;
+    flex-shrink: 0;
+    line-height: 1.5;
+}
+
+.question-text {
+    flex: 1;
+    line-height: 1.6;
+    font-size: 16px;
+}
+
+/* Enhanced Quiz Options */
+.quiz-options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
 }
 
 .quiz-option {
-    margin-bottom: 16px;
-    padding: 12px;
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
     border: 2px solid #e5e7eb;
-    border-radius: 8px;
+    border-radius: 12px;
+    background: white;
     transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 60px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .quiz-option:hover {
     border-color: #3b82f6;
     background-color: #f8fafc;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
 }
 
+.quiz-option.selected {
+    border-color: #22c55e;
+    background-color: #f0fdf4;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
+}
+
+.quiz-option input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    margin-right: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: #22c55e;
+}
+
+.option-content {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.option-letter {
+    font-weight: bold;
+    color: #22c55e;
+    font-size: 16px;
+    flex-shrink: 0;
+    line-height: 1.5;
+}
+
+.option-text {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #374151;
+    flex: 1;
+    word-wrap: break-word;
+    font-weight: 500;
+}
+
+/* Button Styles */
 .btn {
     padding: 12px 24px;
     border-radius: 8px;
@@ -121,6 +200,8 @@
 
 .btn-primary:hover {
     background: #16a34a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
 }
 
 .btn-secondary {
@@ -130,6 +211,48 @@
 
 .btn-secondary:hover {
     background: #4b5563;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .quiz-container {
+        padding: 16px;
+    }
+
+    .quiz-option {
+        padding: 12px;
+        min-height: 50px;
+    }
+
+    .quiz-option input[type="radio"] {
+        width: 18px;
+        height: 18px;
+        margin-right: 12px;
+    }
+
+    .option-text {
+        font-size: 14px;
+    }
+
+    .question-number {
+        font-size: 16px;
+    }
+
+    .question-text {
+        font-size: 15px;
+    }
+}
+
+/* Focus states for accessibility */
+.quiz-option:focus-within {
+    outline: 2px solid #22c55e;
+    outline-offset: 2px;
+}
+
+.quiz-option input[type="radio"]:focus {
+    outline: none;
 }
 </style>
 
@@ -286,9 +409,9 @@
                                 <div class="mb-8">
                                     <!-- Question -->
                                     <div class="quiz-question">
-                                        <div class="flex items-start">
-                                            <span class="font-bold text-lg mr-3 text-green-700">{{ $index + 1 }}.</span>
-                                            <div class="flex-1">{{ $quiz->question }}</div>
+                                        <div class="question-header">
+                                            <span class="question-number">{{ $index + 1 }}.</span>
+                                            <div class="question-text">{{ $quiz->question }}</div>
                                         </div>
                                     </div>
 
@@ -297,60 +420,52 @@
                                         <legend class="sr-only">Question {{ $index + 1 }}</legend>
                                         <input type="hidden" name="quiz_id" value="{{ $quiz->id }}">
 
-                                        <div class="space-y-3">
-                                            <label class="quiz-option cursor-pointer">
-                                                <div class="flex items-center">
-                                                    <input type="radio"
-                                                           id="a_{{ $quiz->id }}"
-                                                           name="options_{{ $quiz->id }}"
-                                                           value="A"
-                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                                                           required>
-                                                    <span class="ml-3 text-sm font-medium text-gray-900">
-                                                        <strong>A.</strong> {{ $quiz->answer_option_a }}
-                                                    </span>
+                                        <div class="quiz-options-container">
+                                            <label class="quiz-option" data-option="A">
+                                                <input type="radio"
+                                                       id="a_{{ $quiz->id }}"
+                                                       name="options_{{ $quiz->id }}"
+                                                       value="A"
+                                                       required>
+                                                <div class="option-content">
+                                                    <span class="option-letter">A.</span>
+                                                    <span class="option-text">{{ $quiz->answer_option_a }}</span>
                                                 </div>
                                             </label>
 
-                                            <label class="quiz-option cursor-pointer">
-                                                <div class="flex items-center">
-                                                    <input type="radio"
-                                                           id="b_{{ $quiz->id }}"
-                                                           name="options_{{ $quiz->id }}"
-                                                           value="B"
-                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                                                           required>
-                                                    <span class="ml-3 text-sm font-medium text-gray-900">
-                                                        <strong>B.</strong> {{ $quiz->answer_option_b }}
-                                                    </span>
+                                            <label class="quiz-option" data-option="B">
+                                                <input type="radio"
+                                                       id="b_{{ $quiz->id }}"
+                                                       name="options_{{ $quiz->id }}"
+                                                       value="B"
+                                                       required>
+                                                <div class="option-content">
+                                                    <span class="option-letter">B.</span>
+                                                    <span class="option-text">{{ $quiz->answer_option_b }}</span>
                                                 </div>
                                             </label>
 
-                                            <label class="quiz-option cursor-pointer">
-                                                <div class="flex items-center">
-                                                    <input type="radio"
-                                                           id="c_{{ $quiz->id }}"
-                                                           name="options_{{ $quiz->id }}"
-                                                           value="C"
-                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                                                           required>
-                                                    <span class="ml-3 text-sm font-medium text-gray-900">
-                                                        <strong>C.</strong> {{ $quiz->answer_option_c }}
-                                                    </span>
+                                            <label class="quiz-option" data-option="C">
+                                                <input type="radio"
+                                                       id="c_{{ $quiz->id }}"
+                                                       name="options_{{ $quiz->id }}"
+                                                       value="C"
+                                                       required>
+                                                <div class="option-content">
+                                                    <span class="option-letter">C.</span>
+                                                    <span class="option-text">{{ $quiz->answer_option_c }}</span>
                                                 </div>
                                             </label>
 
-                                            <label class="quiz-option cursor-pointer">
-                                                <div class="flex items-center">
-                                                    <input type="radio"
-                                                           id="d_{{ $quiz->id }}"
-                                                           name="options_{{ $quiz->id }}"
-                                                           value="D"
-                                                           class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                                                           required>
-                                                    <span class="ml-3 text-sm font-medium text-gray-900">
-                                                        <strong>D.</strong> {{ $quiz->answer_option_d }}
-                                                    </span>
+                                            <label class="quiz-option" data-option="D">
+                                                <input type="radio"
+                                                       id="d_{{ $quiz->id }}"
+                                                       name="options_{{ $quiz->id }}"
+                                                       value="D"
+                                                       required>
+                                                <div class="option-content">
+                                                    <span class="option-letter">D.</span>
+                                                    <span class="option-text">{{ $quiz->answer_option_d }}</span>
                                                 </div>
                                             </label>
                                         </div>
@@ -599,8 +714,29 @@ function startQuizTimer() {
     }
 }
 
+// Enhanced radio button interaction
+function setupQuizInteractions() {
+    const radioInputs = document.querySelectorAll('input[type="radio"]');
+
+    radioInputs.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Remove selected class from all options with the same name
+            const sameName = document.querySelectorAll(`input[name="${this.name}"]`);
+            sameName.forEach(r => {
+                r.closest('.quiz-option').classList.remove('selected');
+            });
+
+            // Add selected class to the chosen option
+            this.closest('.quiz-option').classList.add('selected');
+        });
+    });
+}
+
 // Setup form submission
 document.addEventListener('DOMContentLoaded', function() {
+    // Setup quiz interactions
+    setupQuizInteractions();
+
     const form = document.getElementById('quiz_form');
     if (form) {
         form.addEventListener('submit', async function(e) {

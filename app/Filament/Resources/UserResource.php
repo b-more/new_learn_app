@@ -10,6 +10,8 @@ use App\Models\ExamCategory;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserModuleProgress;
+use App\Services\ActivityTrackingService;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
@@ -28,6 +30,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 use Illuminate\Database\Eloquent\Collection;
+use Filament\Notifications\Notification;
 
 //Audit Trails
 function checkCreateAuthTrailsPermission(): bool
@@ -214,8 +217,6 @@ function checkDeleteQuizPermission(): bool
     return false;
 }
 
-
-
 //Permission
 function checkCreateQuizScorePermission(): bool
 {
@@ -290,8 +291,6 @@ function checkDeleteRolePermission(): bool
     return false;
 }
 
-
-
 //User
 function checkCreateUserPermission(): bool
 {
@@ -329,17 +328,11 @@ function checkDeleteUserPermission(): bool
     return false;
 }
 
-
-
-
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
-
     protected static ?string $navigationIcon = 'heroicon-m-user-circle';
-
     protected static ?string $navigationGroup = 'User Management';
-
     protected static ?int $navigationSort = 8;
 
     public static function getNavigationLabel(): string
@@ -350,6 +343,23 @@ class UserResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return checkReadUserPermission();
+    }
+
+    // 1. ADD NAVIGATION BADGE - Shows total user count
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
+
+    // Optional: Badge color based on user count
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $count = static::getModel()::count();
+        return match (true) {
+            $count > 100 => 'success',
+            $count > 50 => 'warning',
+            default => 'primary'
+        };
     }
 
     public static function form(Form $form): Form
@@ -400,7 +410,12 @@ class UserResource extends Resource
                             ->preload()
                             ->multiple()
                             ->required()
-
+                            // 2. ADD ACTIVITY TRACKING ON MODULE ASSIGNMENT
+                            ->afterStateUpdated(function ($state, $record) {
+                                if ($record && $state) {
+                                    static::trackModuleAssignment($record, $state);
+                                }
+                            })
                     ])
             ]);
     }
@@ -416,6 +431,39 @@ class UserResource extends Resource
                     ->description(function ($record){
                         return $record->email ?? "";
                     }),
+
+                // 3. ADD PROGRESS COLUMN - Shows overall module completion
+                Tables\Columns\TextColumn::make('overall_progress')
+                    ->label('Progress')
+                    ->getStateUsing(function ($record) {
+                        $totalModules = $record->modules()->count();
+                        if ($totalModules == 0) return '0%';
+
+                        $completedModules = UserModuleProgress::where('user_id', $record->id)
+                            ->where('status', 'completed')
+                            ->count();
+
+                        $percentage = round(($completedModules / $totalModules) * 100, 1);
+                        return $percentage . '%';
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match (true) {
+                        str_contains($state, '100%') => 'success',
+                        (float) str_replace('%', '', $state) >= 70 => 'warning',
+                        (float) str_replace('%', '', $state) > 0 => 'info',
+                        default => 'gray',
+                    })
+                    ->sortable()
+                    ->tooltip(function ($record) {
+                        $progress = UserModuleProgress::where('user_id', $record->id)->with('module')->get();
+                        if ($progress->isEmpty()) return 'No progress data';
+
+                        $details = $progress->map(function ($p) {
+                            return ($p->module->title ?? 'Unknown Module') . ': ' . number_format($p->overall_progress ?? 0, 1) . '%';
+                        })->join("\n");
+                        return $details;
+                    }),
+
                 Tables\Columns\TextColumn::make('user_id')
                     ->label('Created/Updated By')
                     ->formatStateUsing(function ($state){
@@ -424,21 +472,56 @@ class UserResource extends Resource
                     ->description(function ($record){
                         return User::where('id',$record->updated_by)->first()->name ?? "";
                     }),
+
                 Tables\Columns\TextColumn::make('role_id')
                     ->formatStateUsing(function ($record){
                         return Role::where('id', $record->role_id)->first()->name ?? "";
                     })
                     ->label('Role'),
+
                 Tables\Columns\TextColumn::make('modules.title')
                     ->label('Assigned Modules')
                     ->badge()
                     ->searchable()
-                    ->wrap(),
+                    ->wrap()
+                    ->tooltip(function ($record) {
+                        $moduleCount = $record->modules()->count();
+                        return "Total: {$moduleCount} modules assigned";
+                    }),
+
+                // ADD ACTIVITY STATUS COLUMN
+                Tables\Columns\TextColumn::make('last_activity')
+                    ->label('Last Activity')
+                    ->getStateUsing(function ($record) {
+                        $lastActivity = \App\Models\AuditTrail::where('user_id', $record->id)
+                            ->orderBy('activity_timestamp', 'desc')
+                            ->first();
+
+                        return $lastActivity ? $lastActivity->activity_timestamp->diffForHumans() : 'No activity';
+                    })
+                    ->badge()
+                    ->color(function ($record) {
+                        $lastActivity = \App\Models\AuditTrail::where('user_id', $record->id)
+                            ->orderBy('activity_timestamp', 'desc')
+                            ->first();
+
+                        if (!$lastActivity) return 'gray';
+
+                        $daysSince = $lastActivity->activity_timestamp->diffInDays(now());
+                        return match (true) {
+                            $daysSince <= 1 => 'success',  // Active today/yesterday
+                            $daysSince <= 7 => 'warning',  // Active this week
+                            default => 'danger'            // Inactive
+                        };
+                    })
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('branch_id')
                     ->formatStateUsing(function ($record){
                         return Branch::where('id', $record->branch_id)->first()->name ?? "";
                     })
                     ->label('Branch Name'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created/Updated At')
                     ->dateTime()
@@ -452,43 +535,100 @@ class UserResource extends Resource
                     ->multiple()
                     ->preload(),
                 SelectFilter::make('role_id')
-                ->multiple()
-                ->label('Role')
-                ->options(Role::all()->pluck('name','id')->toArray()),
-            SelectFilter::make('branch_id')
-                ->multiple()
-                ->label('Branch')
-                ->options(Branch::all()->pluck('name','id')->toArray()),
-            Filter::make('created_at')
-                ->form([
-                    DatePicker::make('created_from'),
-                    DatePicker::make('created_until'),
-                ])
-                ->query(function (Builder $query, array $data): Builder {
-                    return $query
-                        ->when(
-                            $data['created_from'],
-                            fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
-                        )
-                        ->when(
-                            $data['created_until'],
-                            fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
-                        );
-                })
+                    ->multiple()
+                    ->label('Role')
+                    ->options(Role::all()->pluck('name','id')->toArray()),
+                SelectFilter::make('branch_id')
+                    ->multiple()
+                    ->label('Branch')
+                    ->options(Branch::all()->pluck('name','id')->toArray()),
+
+                // ADD PROGRESS FILTER
+                SelectFilter::make('progress_status')
+                    ->label('Progress Status')
+                    ->options([
+                        'completed' => 'Completed (100%)',
+                        'in_progress' => 'In Progress (1-99%)',
+                        'not_started' => 'Not Started (0%)',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when($data['value'], function ($query, $status) {
+                            return match($status) {
+                                'completed' => $query->whereHas('moduleProgress', fn($q) =>
+                                    $q->where('status', 'completed')),
+                                'in_progress' => $query->whereHas('moduleProgress', fn($q) =>
+                                    $q->where('status', 'in_progress')),
+                                'not_started' => $query->whereDoesntHave('moduleProgress')
+                                    ->orWhereHas('moduleProgress', fn($q) =>
+                                        $q->where('overall_progress', 0)),
+                                default => $query
+                            };
+                        });
+                    }),
+
+                Filter::make('created_at')
+                    ->form([
+                        DatePicker::make('created_from'),
+                        DatePicker::make('created_until'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_from'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['created_until'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    })
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+
+                // ADD PROGRESS VIEW ACTION
+                Tables\Actions\Action::make('viewProgress')
+                    ->label('View Progress')
+                    ->icon('heroicon-o-chart-bar')
+                    ->color('info')
+                    //->url(fn ($record): string => route('filament.admin.resources.users.progress', $record))
+                    ->visible(fn ($record) => $record->modules()->count() > 0)
+                    ->openUrlInNewTab(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     ActionsExportBulkAction::make()
-                    ->label('Download Users Report'),
+                        ->label('Download Users Report'),
+
                     Tables\Actions\BulkAction::make('assignModules')
                         ->label('Mass Assign Modules')
                         ->icon('heroicon-o-book-open')
                         ->action(function (Collection $records, array $data): void {
-                            foreach ($records as $record) {
-                                $record->modules()->syncWithoutDetaching($data['modules']);
+                            try {
+                                $activityService = app(ActivityTrackingService::class);
+
+                                foreach ($records as $record) {
+                                    $previousModules = $record->modules()->pluck('id')->toArray();
+                                    $record->modules()->syncWithoutDetaching($data['modules']);
+
+                                    // Track activity for newly assigned modules
+                                    $newModules = array_diff($data['modules'], $previousModules);
+                                    foreach ($newModules as $moduleId) {
+                                        $activityService->trackModuleAssignment($record->id, $moduleId, auth()->id());
+                                    }
+                                }
+
+                                Notification::make()
+                                    ->title('Modules Assigned Successfully')
+                                    ->body(count($records) . ' users have been assigned ' . count($data['modules']) . ' modules')
+                                    ->success()
+                                    ->send();
+                            } catch (\Exception $e) {
+                                Notification::make()
+                                    ->title('Assignment Failed')
+                                    ->body('Error occurred while assigning modules')
+                                    ->danger()
+                                    ->send();
                             }
                         })
                         ->deselectRecordsAfterCompletion()
@@ -502,14 +642,43 @@ class UserResource extends Resource
                                 })
                                 ->required(),
                         ]),
+
                     Tables\Actions\BulkAction::make('unassignModules')
                         ->label('Unassign Modules')
                         ->icon('heroicon-o-book-open')
                         ->color('danger')
-
                         ->action(function (Collection $records, array $data): void {
-                            foreach ($records as $record) {
-                                $record->modules()->detach($data['modules']);
+                            try {
+                                foreach ($records as $record) {
+                                    $record->modules()->detach($data['modules']);
+
+                                    // Log unassignment activity
+                                    foreach ($data['modules'] as $moduleId) {
+                                        \App\Models\AuditTrail::logActivity(
+                                            auth()->id(),
+                                            'module_unassigned',
+                                            'Module Assignment',
+                                            "Unassigned module from user: {$record->name}",
+                                            [
+                                                'resource_id' => $moduleId,
+                                                'resource_type' => 'module',
+                                                'target_user_id' => $record->id
+                                            ]
+                                        );
+                                    }
+                                }
+
+                                Notification::make()
+                                    ->title('Modules Unassigned Successfully')
+                                    ->body(count($records) . ' users have been unassigned from ' . count($data['modules']) . ' modules')
+                                    ->warning()
+                                    ->send();
+                            } catch (\Exception $e) {
+                                Notification::make()
+                                    ->title('Unassignment Failed')
+                                    ->body('Error occurred while unassigning modules')
+                                    ->danger()
+                                    ->send();
                             }
                         })
                         ->deselectRecordsAfterCompletion()
@@ -526,6 +695,23 @@ class UserResource extends Resource
                         ->requiresConfirmation(),
                 ])
             ]);
+    }
+
+    // 2. ACTIVITY TRACKING METHODS
+    protected static function trackModuleAssignment($user, $moduleIds)
+    {
+        try {
+            $activityService = app(ActivityTrackingService::class);
+
+            if (is_array($moduleIds)) {
+                foreach ($moduleIds as $moduleId) {
+                    $activityService->trackModuleAssignment($user->id, $moduleId, auth()->id());
+                }
+            }
+        } catch (\Exception $e) {
+            // Log error but don't break the flow
+            \Log::error('Failed to track module assignment: ' . $e->getMessage());
+        }
     }
 
     public static function getRelations(): array

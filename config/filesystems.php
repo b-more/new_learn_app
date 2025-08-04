@@ -44,6 +44,29 @@ return [
             'throw' => false,
         ],
 
+        'livewire-tmp' => [
+            'driver' => 'local',
+            'root' => storage_path('app/livewire-tmp'),
+            'serve' => true,
+            'throw' => false,
+        ],
+
+        'lessons' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/lessons'),
+            'url' => env('APP_URL').'/storage/lessons',
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
+        'documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/lessons/documents'),
+            'url' => env('APP_URL').'/storage/lessons/documents',
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
         'private' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

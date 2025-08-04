@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+         \Livewire\Livewire::component('stats-overview', \App\Livewire\StatsOverview::class);
+        \Livewire\Livewire::component('app.livewire.stats-overview', \App\Livewire\StatsOverview::class);
     }
 }
