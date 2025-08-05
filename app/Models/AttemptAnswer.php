@@ -18,6 +18,7 @@ class AttemptAnswer extends Model
         'user_answer',
         'correct_answer',
         'auto_mark',
+        'was_answered', // NEW: Track if question was actually answered by user
         'attempt_started_at',
         'attempt_completed_at',
         'attempt_status',
@@ -38,6 +39,7 @@ class AttemptAnswer extends Model
         'detailed_answers' => 'array',
         'score_percentage' => 'decimal:2',
         'auto_mark' => 'boolean',
+        'was_answered' => 'boolean', // NEW: Cast for was_answered field
         'user_id' => 'integer',
         'module_id' => 'integer',
         'lesson_id' => 'integer',
@@ -68,7 +70,7 @@ class AttemptAnswer extends Model
         return $this->belongsTo(Quizz::class);
     }
 
-    // Helper methods
+    // Your existing helper methods (keeping them as-is)
     public function isPassed()
     {
         return $this->score_percentage >= 70;
@@ -99,8 +101,10 @@ class AttemptAnswer extends Model
     {
         return match($this->attempt_status) {
             'started' => 'warning',
+            'in_progress' => 'warning',
             'completed' => $this->isPassed() ? 'success' : 'danger',
             'timed_out' => 'danger',
+            'expired' => 'danger',
             default => 'gray'
         };
     }
@@ -148,11 +152,6 @@ class AttemptAnswer extends Model
     }
 
     /**
-     * Get formatted time taken
-     */
-
-
-    /**
      * Check if attempt is in progress
      */
     public function isInProgress()
@@ -165,7 +164,7 @@ class AttemptAnswer extends Model
      */
     public function isCompleted()
     {
-        return in_array($this->attempt_status, ['completed', 'expired']);
+        return in_array($this->attempt_status, ['completed', 'expired', 'timed_out']);
     }
 
     /**
@@ -180,8 +179,65 @@ class AttemptAnswer extends Model
         return $this->score_percentage >= 70 ? 'Passed' : 'Failed';
     }
 
+    // NEW METHODS - Building on your existing structure
+
     /**
-     * Get attempt summary
+     * Check if this was a timeout submission (using your existing status values)
+     */
+    public function isTimeoutSubmission()
+    {
+        return in_array($this->attempt_status, ['timed_out', 'expired']);
+    }
+
+    /**
+     * Check if this was a manual submission
+     */
+    public function isManualSubmission()
+    {
+        return $this->attempt_status === 'completed' && !$this->isTimeoutSubmission();
+    }
+
+    /**
+     * Check if question was actually answered by user
+     */
+    public function wasAnsweredByUser()
+    {
+        return $this->was_answered === true;
+    }
+
+    /**
+     * Get submission type label (enhanced to work with your status values)
+     */
+    public function getSubmissionTypeLabel()
+    {
+        return match($this->attempt_status) {
+            'timed_out' => 'Auto-submitted (Timeout)',
+            'expired' => 'Auto-submitted (Expired)',
+            'completed' => 'Manual Submission',
+            'in_progress' => 'In Progress',
+            'started' => 'Started',
+            default => 'Unknown'
+        };
+    }
+
+    /**
+     * Get enhanced attempt summary (building on your existing getSummary)
+     */
+    public function getEnhancedSummary()
+    {
+        $baseSummary = $this->getSummary();
+
+        return array_merge($baseSummary, [
+            'was_answered' => $this->wasAnsweredByUser(),
+            'submission_type' => $this->getSubmissionTypeLabel(),
+            'is_timeout_submission' => $this->isTimeoutSubmission(),
+            'is_manual_submission' => $this->isManualSubmission(),
+            'badge_color' => $this->getStatusBadgeColor(),
+        ]);
+    }
+
+    /**
+     * Get attempt summary (your existing method - keeping as-is)
      */
     public function getSummary()
     {
@@ -201,9 +257,67 @@ class AttemptAnswer extends Model
         ];
     }
 
+    // NEW SCOPES - Building on your existing ones
+
     /**
-     * Scope for active attempts
+     * Scope for answered questions only
      */
+    public function scopeAnswered($query)
+    {
+        return $query->where('was_answered', true);
+    }
+
+    /**
+     * Scope for unanswered questions only
+     */
+    public function scopeUnanswered($query)
+    {
+        return $query->where('was_answered', false);
+    }
+
+    /**
+     * Scope for timeout submissions (using your status values)
+     */
+    public function scopeTimeoutSubmissions($query)
+    {
+        return $query->whereIn('attempt_status', ['timed_out', 'expired']);
+    }
+
+    /**
+     * Scope for manual submissions (using your status values)
+     */
+    public function scopeManualSubmissions($query)
+    {
+        return $query->where('attempt_status', 'completed')
+                    ->whereNotIn('attempt_status', ['timed_out', 'expired']);
+    }
+
+    /**
+     * Scope for recent attempts (last 7 days)
+     */
+    public function scopeRecent($query, $days = 7)
+    {
+        return $query->where('created_at', '>=', now()->subDays($days));
+    }
+
+    /**
+     * Scope for passed attempts
+     */
+    public function scopePassed($query)
+    {
+        return $query->where('score_percentage', '>=', 70);
+    }
+
+    /**
+     * Scope for failed attempts
+     */
+    public function scopeFailed($query)
+    {
+        return $query->where('score_percentage', '<', 70)
+                    ->whereNotNull('score_percentage');
+    }
+
+    // Your existing scopes (keeping them as-is)
     public function scopeInProgress($query)
     {
         return $query->where('attempt_status', 'in_progress')
@@ -213,25 +327,19 @@ class AttemptAnswer extends Model
                     });
     }
 
-    /**
-     * Scope for expired attempts
-     */
     public function scopeExpired($query)
     {
         return $query->where('attempt_status', 'in_progress')
                     ->where('timer_expires_at', '<=', now());
     }
 
-    /**
-     * Scope for completed attempts
-     */
     public function scopeCompleted($query)
     {
         return $query->where('attempt_status', 'completed');
     }
 
     /**
-     * Auto-expire attempts that have timed out
+     * Auto-expire attempts that have timed out (your existing method)
      */
     public static function expireTimedOutAttempts()
     {
@@ -239,5 +347,37 @@ class AttemptAnswer extends Model
             'attempt_status' => 'expired',
             'attempt_completed_at' => now()
         ]);
+    }
+
+    // NEW STATIC METHODS - Analytics helpers
+
+    /**
+     * Get user performance statistics
+     */
+    public static function getUserStats($userId)
+    {
+        $attempts = self::where('user_id', $userId)->get();
+
+        return [
+            'total_attempts' => $attempts->count(),
+            'total_questions' => $attempts->count(),
+            'total_correct' => $attempts->where('auto_mark', true)->count(),
+            'total_answered' => $attempts->where('was_answered', true)->count(),
+            'total_unanswered' => $attempts->where('was_answered', false)->count(),
+            'timeout_submissions' => $attempts->whereIn('attempt_status', ['timed_out', 'expired'])->count(),
+            'manual_submissions' => $attempts->where('attempt_status', 'completed')->count(),
+            'overall_percentage' => $attempts->count() > 0
+                ? round(($attempts->where('auto_mark', true)->count() / $attempts->count()) * 100, 2)
+                : 0,
+            'recent_attempts' => $attempts->where('created_at', '>=', now()->subDays(7))->count(),
+        ];
+    }
+
+    /**
+     * Get session grouping key (for grouping attempts by quiz session)
+     */
+    public function getSessionGroupKey()
+    {
+        return $this->lesson_id . '_' . $this->created_at->format('Y-m-d_H-i');
     }
 }

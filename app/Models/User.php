@@ -106,6 +106,11 @@ class User extends Authenticatable
         return $this->hasMany(AuditTrail::class);
     }
 
+    public function attemptAnswers()
+    {
+        return $this->hasMany(AttemptAnswer::class);
+    }
+
     // =============================================================================
     // ACCESSOR ATTRIBUTES (for UserResource)
     // =============================================================================
