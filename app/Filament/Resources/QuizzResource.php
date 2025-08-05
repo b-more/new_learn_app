@@ -32,6 +32,10 @@ class QuizzResource extends Resource
         return checkReadQuizPermission();
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
     public static function getNavigationLabel(): string
     {
         return "Quiz";

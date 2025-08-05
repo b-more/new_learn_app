@@ -30,6 +30,11 @@ class BranchResource extends Resource
         return checkReadBranchPermission();
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
+
     public static function form(Form $form): Form
     {
         return $form
