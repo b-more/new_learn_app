@@ -1,6 +1,8 @@
 <?php
 
+// app/Exports/QuizAttemptsExport.php
 namespace App\Exports;
+
 use App\Models\AttemptAnswer;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +18,11 @@ class QuizAttemptsExport implements FromCollection, WithHeadings, WithMapping, S
     public function __construct($reports)
     {
         $this->reports = $reports;
+
+        Log::info('QuizAttemptsExport: Session-based export initiated', [
+            'total_records' => $reports->count(),
+            'user_ids' => $reports->pluck('user_id')->unique()->values()->toArray()
+        ]);
     }
 
     public function collection()
@@ -37,15 +44,31 @@ class QuizAttemptsExport implements FromCollection, WithHeadings, WithMapping, S
 
     public function map($reports): array
     {
+        $user = User::where('id', $reports->user_id)->first();
+
+        if (!$user) {
+            return [
+                'Unknown User',
+                0,
+                0,
+                0,
+                0,
+                $reports->updated_at
+            ];
+        }
+
+        // Simple session-based counting - much cleaner!
+        $sessionCount = AttemptAnswer::getUserSessionCount($reports->user_id);
+        $passedCount = AttemptAnswer::getUserPassedSessionsCount($reports->user_id);
+        $failedCount = AttemptAnswer::getUserFailedSessionsCount($reports->user_id);
+
         return [
-            User::where('id',$reports->user_id)->first()->name ?? "",
-            User::where('id',$reports->user_id)->first()->modules->count(),
-            AttemptAnswer::where('user_id',$reports->user_id)->count(),
-            AttemptAnswer::where('user_id', $reports->user_id)->where('auto_mark',1)->count() ?? 0,
-            AttemptAnswer::where('user_id', $reports->user_id)->where('auto_mark',0)->count(),
+            $user->name,
+            $user->modules->count(),
+            $sessionCount,
+            $passedCount,
+            $failedCount,
             $reports->updated_at
         ];
     }
 }
-
-

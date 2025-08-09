@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/ModuleController.php - COMPLETE FIXED VERSION
+// app/Http/Controllers/ModuleController.php - Updated with Session Support
 
 namespace App\Http\Controllers;
 
@@ -13,6 +13,7 @@ use App\Services\ActivityTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ModuleController extends Controller
 {
@@ -24,74 +25,93 @@ class ModuleController extends Controller
     }
 
     /**
-     * Start quiz attempt - FIXED TO CREATE DATABASE RECORD
+     * Start quiz attempt - UPDATED with session support (replaces your startQuizAttempt)
      */
-    public function startQuizAttempt(Request $request)
+    public function startQuizSession(Request $request)
     {
         try {
             $request->validate([
                 'user_id' => 'required|exists:users,id',
-                'lesson_id' => 'required|exists:lessons,id'
+                'lesson_id' => 'required|exists:lessons,id',
+                'module_id' => 'required|exists:modules,id',
+                'expected_questions' => 'nullable|integer|min:1'
             ]);
 
             $userId = $request->user_id;
             $lessonId = $request->lesson_id;
+            $moduleId = $request->module_id;
+            $expectedQuestions = $request->expected_questions;
 
             $lesson = Lesson::find($lessonId);
             $timerSettings = $lesson->getTimerSettings();
 
-            // Create the actual attempt record in database
-            $attempt = AttemptAnswer::create([
-                'user_id' => $userId,
-                'lesson_id' => $lessonId,
-                'module_id' => $lesson->module_id,
-                'attempt_started_at' => now(),
-                'attempt_status' => 'started',
-                'timer_settings' => json_encode($timerSettings),
-                'timer_expires_at' => $timerSettings['enabled']
-                    ? now()->addMinutes($timerSettings['duration_minutes'])
-                    : null,
-            ]);
+            // Check if user has an active session for this lesson
+            $activeSessionId = AttemptAnswer::getActiveSession($userId, $lessonId);
 
-            // Track lesson access
-            $this->activityService->trackLessonAccess($userId, $lessonId, $lesson->module_id);
+            if ($activeSessionId) {
+                Log::info('Quiz session: Resuming existing session', [
+                    'user_id' => $userId,
+                    'lesson_id' => $lessonId,
+                    'existing_session_id' => $activeSessionId
+                ]);
 
-            // Log quiz start activity
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Resuming existing quiz session',
+                    'session_id' => $activeSessionId,
+                    'is_new_session' => false,
+                    'timer_settings' => $timerSettings
+                ]);
+            }
+
+            // Generate new session ID
+            $sessionId = 'quiz_' . Str::uuid()->toString();
+            $sessionStartTime = now();
+
+            // Track lesson access (your existing logic)
+            $this->activityService->trackLessonAccess($userId, $lessonId, $moduleId);
+
+            // Log quiz start activity (your existing logic)
             AuditTrail::logActivity(
                 $userId,
                 'quiz_started',
                 'Quiz',
-                "Started quiz attempt for lesson: {$lesson->title}",
+                "Started quiz session for lesson: {$lesson->title}",
                 [
                     'resource_id' => $lessonId,
                     'resource_type' => 'quiz',
-                    'module_id' => $lesson->module_id,
-                    'attempt_id' => $attempt->id,
+                    'module_id' => $moduleId,
+                    'session_id' => $sessionId,
                     'timer_enabled' => $timerSettings['enabled'],
-                    'timer_duration' => $timerSettings['duration_minutes']
+                    'timer_duration' => $timerSettings['duration_minutes'],
+                    'expected_questions' => $expectedQuestions
                 ]
             );
 
-            Log::info('Quiz attempt started successfully', [
-                'attempt_id' => $attempt->id,
+            Log::info('Quiz session started successfully', [
+                'session_id' => $sessionId,
                 'user_id' => $userId,
                 'lesson_id' => $lessonId,
-                'timer_enabled' => $timerSettings['enabled']
+                'module_id' => $moduleId,
+                'timer_enabled' => $timerSettings['enabled'],
+                'expected_questions' => $expectedQuestions
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Quiz attempt started successfully',
-                'attempt_id' => $attempt->id, // Return actual attempt ID
+                'message' => 'Quiz session started successfully',
+                'session_id' => $sessionId,
+                'session_started_at' => $sessionStartTime->toISOString(),
+                'is_new_session' => true,
                 'timer_settings' => $timerSettings,
                 'timer_expires_at' => $timerSettings['enabled']
-                    ? $attempt->timer_expires_at->toISOString()
+                    ? $sessionStartTime->addMinutes($timerSettings['duration_minutes'])->toISOString()
                     : null,
                 'server_time' => now()->toISOString()
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Quiz attempt start error: ' . $e->getMessage(), [
+            Log::error('Quiz session start error: ' . $e->getMessage(), [
                 'user_id' => $request->user_id ?? null,
                 'lesson_id' => $request->lesson_id ?? null,
                 'error' => $e->getMessage(),
@@ -100,376 +120,334 @@ class ModuleController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to start quiz attempt',
+                'message' => 'Failed to start quiz session',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Quiz marking - FIXED TO UPDATE EXISTING ATTEMPT RECORD
+     * Quiz marking - UPDATED with session support (replaces your marking method)
      */
-    // public function marking(Request $request)
-    // {
-    //     DB::beginTransaction();
-
-    //     try {
-    //         $request->validate([
-    //             'user_id' => 'required|exists:users,id',
-    //             'lesson_id' => 'required|exists:lessons,id',
-    //             'module_id' => 'required|exists:modules,id'
-    //         ]);
-
-    //         $userId = $request->user_id;
-    //         $lessonId = $request->lesson_id;
-    //         $moduleId = $request->module_id;
-
-    //         Log::info('Quiz marking started', [
-    //             'user_id' => $userId,
-    //             'lesson_id' => $lessonId,
-    //             'module_id' => $moduleId,
-    //             'request_data' => $request->all()
-    //         ]);
-
-    //         // Process quiz answers
-    //         $quizAnswers = collect($request->all())->filter(function($value, $key) {
-    //             return str_starts_with($key, 'options_');
-    //         })->mapWithKeys(function($value, $key) {
-    //             $quizId = str_replace('options_', '', $key);
-    //             return [$quizId => $value];
-    //         });
-
-    //         if ($quizAnswers->isEmpty()) {
-    //             throw new \Exception('No quiz answers found in request');
-    //         }
-
-    //         Log::info('Processed quiz answers', [
-    //             'answers_count' => $quizAnswers->count(),
-    //             'answers' => $quizAnswers->toArray()
-    //         ]);
-
-    //         // Find the most recent started attempt
-    //         $attempt = AttemptAnswer::where('user_id', $userId)
-    //             ->where('lesson_id', $lessonId)
-    //             ->where('attempt_status', 'started')
-    //             ->orderBy('attempt_started_at', 'desc')
-    //             ->first();
-
-    //         // If no existing attempt, create one (fallback)
-    //         if (!$attempt) {
-    //             Log::warning('No existing attempt found, creating new one');
-    //             $attempt = AttemptAnswer::create([
-    //                 'user_id' => $userId,
-    //                 'lesson_id' => $lessonId,
-    //                 'module_id' => $moduleId,
-    //                 'attempt_started_at' => now(),
-    //                 'attempt_status' => 'started'
-    //             ]);
-    //         }
-
-    //         // Initialize counters
-    //         $totalQuestions = $quizAnswers->count();
-    //         $correctAnswers = 0;
-    //         $detailedAnswers = [];
-
-    //         // Process each answer
-    //         foreach ($quizAnswers as $quizId => $userAnswer) {
-    //             $quiz = Quizz::find($quizId);
-
-    //             if (!$quiz) {
-    //                 Log::warning("Quiz not found for ID: {$quizId}");
-    //                 continue;
-    //             }
-
-    //             $isCorrect = ($quiz->correct_answer === $userAnswer);
-    //             if ($isCorrect) {
-    //                 $correctAnswers++;
-    //             }
-
-    //             $detailedAnswers[] = [
-    //                 'quiz_id' => $quizId,
-    //                 'question' => $quiz->question,
-    //                 'user_answer' => $userAnswer,
-    //                 'correct_answer' => $quiz->correct_answer,
-    //                 'is_correct' => $isCorrect,
-    //             ];
-
-    //             Log::info("Question {$quizId}: User answered '{$userAnswer}', Correct: '{$quiz->correct_answer}', Result: " . ($isCorrect ? 'CORRECT' : 'WRONG'));
-    //         }
-
-    //         // Calculate score
-    //         $scorePercentage = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
-    //         $passed = $scorePercentage >= 70;
-
-    //         // Update the attempt record with all details
-    //         $attempt->update([
-    //             'attempt_completed_at' => now(),
-    //             'attempt_status' => 'completed',
-    //             'total_questions' => $totalQuestions,
-    //             'correct_answers' => $correctAnswers,
-    //             'score_percentage' => $scorePercentage,
-    //             'detailed_answers' => json_encode($detailedAnswers),
-    //             'auto_mark' => $passed ? 1 : 0,
-    //             'time_taken_seconds' => $attempt->attempt_started_at
-    //                 ? now()->diffInSeconds($attempt->attempt_started_at)
-    //                 : null,
-    //         ]);
-
-    //         // Update lesson user activity
-    //         $lessonActivity = LessonUserActivity::where('user_id', $userId)
-    //             ->where('lesson_id', $lessonId)
-    //             ->first();
-
-    //         if ($lessonActivity && $passed) {
-    //             $lessonActivity->lesson_completed = true;
-    //             $lessonActivity->save();
-    //         }
-
-    //         // Log comprehensive activity
-    //         AuditTrail::logActivity(
-    //             $userId,
-    //             'quiz_completed',
-    //             'Quiz',
-    //             "Completed quiz with score: {$scorePercentage}% (" . ($passed ? 'PASSED' : 'FAILED') . ")",
-    //             [
-    //                 'resource_id' => $lessonId,
-    //                 'resource_type' => 'quiz',
-    //                 'module_id' => $moduleId,
-    //                 'attempt_id' => $attempt->id,
-    //                 'total_questions' => $totalQuestions,
-    //                 'correct_answers' => $correctAnswers,
-    //                 'score_percentage' => $scorePercentage,
-    //                 'pass_status' => $passed ? 'Passed' : 'Failed',
-    //                 'time_taken_seconds' => $attempt->time_taken_seconds,
-    //                 'progress_percentage' => $scorePercentage
-    //             ]
-    //         );
-
-    //         // Update module progress
-    //         $this->updateModuleProgress($userId, $moduleId);
-
-    //         DB::commit();
-
-    //         Log::info('Quiz marking completed successfully', [
-    //             'attempt_id' => $attempt->id,
-    //             'score_percentage' => $scorePercentage,
-    //             'passed' => $passed,
-    //             'correct_answers' => $correctAnswers,
-    //             'total_questions' => $totalQuestions
-    //         ]);
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Quiz completed successfully',
-    //             'attempt_id' => $attempt->id,
-    //             'score_percentage' => $scorePercentage,
-    //             'pass_percentage' => $scorePercentage, // For backwards compatibility
-    //             'passed' => $passed,
-    //             'correct_answers' => $correctAnswers,
-    //             'total_questions' => $totalQuestions,
-    //             'time_taken_seconds' => $attempt->time_taken_seconds,
-    //             'pass_status' => $passed ? 'Passed' : 'Failed'
-    //         ]);
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-
-    //         Log::error('Quiz marking error: ' . $e->getMessage(), [
-    //             'user_id' => $request->user_id ?? null,
-    //             'lesson_id' => $request->lesson_id ?? null,
-    //             'module_id' => $request->module_id ?? null,
-    //             'error' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString()
-    //         ]);
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Failed to submit quiz',
-    //             'error' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-
     public function marking(Request $request)
-{
-    try {
-        $request->validate([
-            'user_id' => 'required',
-            'lesson_id' => 'required',
-            'module_id' => 'required'
-        ]);
+    {
+        DB::beginTransaction();
 
-        Log::info('Quiz marking started', [
-            'user_id' => $request->user_id,
-            'lesson_id' => $request->lesson_id,
-            'module_id' => $request->module_id,
-            'request_data' => $request->all()
-        ]);
+        try {
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'lesson_id' => 'required|exists:lessons,id',
+                'module_id' => 'required|exists:modules,id',
+                'session_id' => 'required|string' // Now required!
+            ]);
 
-        // Check if this is a timeout submission (using your header approach)
-        $isTimeoutSubmission = $request->header('X-Timeout-Submission') === 'true';
-        $submissionType = $request->header('X-Submission-Type') ?: 'completed';
+            $userId = $request->user_id;
+            $lessonId = $request->lesson_id;
+            $moduleId = $request->module_id;
+            $sessionId = $request->session_id;
 
-        // Process quiz answers
-        $quizAnswers = collect($request->all())->filter(function($value, $key) {
-            return str_starts_with($key, 'options_');
-        })->mapWithKeys(function($value, $key) {
-            $quizId = str_replace('options_', '', $key);
-            return [$quizId => $value];
-        });
+            Log::info('Quiz marking started with session', [
+                'user_id' => $userId,
+                'lesson_id' => $lessonId,
+                'module_id' => $moduleId,
+                'session_id' => $sessionId,
+                'request_data' => $request->all()
+            ]);
 
-        if ($quizAnswers->isEmpty()) {
-            throw new \Exception('No quiz answers found in request');
-        }
-
-        Log::info('Processed Quiz Answers: ' . json_encode($quizAnswers->toArray()));
-
-        // Initialize counters
-        $totalQuestions = $quizAnswers->count();
-        $correctAnswers = 0;
-        $answeredQuestions = 0;
-        $unansweredQuestions = 0;
-        $answerResult = [];
-
-        // Get timing information
-        $attemptStarted = now()->subMinutes(30); // Fallback, you might want to track this better
-        $attemptCompleted = now();
-
-        foreach ($quizAnswers as $quizId => $userAnswer) {
-            $quiz = Quizz::find($quizId);
-
-            if (!$quiz) {
-                Log::warning("Quiz not found for ID: {$quizId}");
-                continue;
+            // Verify session exists and is active
+            if (!AttemptAnswer::isSessionActive($sessionId)) {
+                throw new \Exception("Invalid or inactive session: {$sessionId}");
             }
 
-            // Check if this was an unanswered question
-            $wasAnswered = $userAnswer !== 'UNANSWERED';
+            // Check if this is a timeout submission (your existing logic)
+            $isTimeoutSubmission = $request->header('X-Timeout-Submission') === 'true';
+            $submissionType = $request->header('X-Submission-Type') ?: 'completed';
+            $sessionStatus = $isTimeoutSubmission ? 'timed_out' : 'completed';
 
-            if ($wasAnswered) {
-                $answeredQuestions++;
-            } else {
-                $unansweredQuestions++;
+            // Process quiz answers (your existing logic)
+            $quizAnswers = collect($request->all())->filter(function($value, $key) {
+                return str_starts_with($key, 'options_');
+            })->mapWithKeys(function($value, $key) {
+                $quizId = str_replace('options_', '', $key);
+                return [$quizId => $value];
+            });
+
+            if ($quizAnswers->isEmpty()) {
+                throw new \Exception('No quiz answers found in request');
             }
 
-            // Determine if answer is correct
-            // UNANSWERED is always wrong, regardless of correct answer
-            $isCorrect = $wasAnswered && ($quiz->correct_answer === $userAnswer);
+            Log::info('Processing quiz answers for session', [
+                'session_id' => $sessionId,
+                'answers_count' => $quizAnswers->count(),
+                'answers' => $quizAnswers->toArray()
+            ]);
 
-            if ($isCorrect) {
-                $correctAnswers++;
-            }
+            // Get session timing information
+            $sessionStartTime = now()->subMinutes(30); // You might want to get this from the session start
+            $sessionEndTime = now();
 
-            // Store answer result with additional metadata
-            $answerResult[] = [
-                'quiz_id' => $quizId,
-                'question' => $quiz->question,
-                'user_answer' => $userAnswer,
-                'correct_answer' => $quiz->correct_answer,
-                'is_correct' => $isCorrect,
-                'was_answered' => $wasAnswered,
-                'auto_mark' => $isCorrect,
-            ];
+            // Initialize counters (your existing logic)
+            $totalQuestions = $quizAnswers->count();
+            $correctAnswers = 0;
+            $answeredQuestions = 0;
+            $unansweredQuestions = 0;
+            $answerResult = [];
 
-            // Save individual attempt answer using your existing model structure
-            try {
-                AttemptAnswer::create([
-                    'user_id' => $request->user_id,
-                    'lesson_id' => $request->lesson_id,
-                    'module_id' => $request->module_id,
+            // Process each answer and create attempt records (your logic + session_id)
+            foreach ($quizAnswers as $quizId => $userAnswer) {
+                $quiz = Quizz::find($quizId);
+
+                if (!$quiz) {
+                    Log::warning("Quiz not found for ID: {$quizId}");
+                    continue;
+                }
+
+                // Check if this was an unanswered question (your existing logic)
+                $wasAnswered = $userAnswer !== 'UNANSWERED';
+
+                if ($wasAnswered) {
+                    $answeredQuestions++;
+                } else {
+                    $unansweredQuestions++;
+                }
+
+                // Determine if answer is correct (your existing logic)
+                $isCorrect = $wasAnswered && ($quiz->correct_answer === $userAnswer);
+
+                if ($isCorrect) {
+                    $correctAnswers++;
+                }
+
+                // Store answer result with additional metadata (your existing logic)
+                $answerResult[] = [
                     'quiz_id' => $quizId,
+                    'question' => $quiz->question,
+                    'user_answer' => $userAnswer,
+                    'correct_answer' => $quiz->correct_answer,
+                    'is_correct' => $isCorrect,
+                    'was_answered' => $wasAnswered,
+                    'auto_mark' => $isCorrect,
+                ];
+
+                Log::info("Processing question", [
+                    'session_id' => $sessionId,
+                    'quiz_id' => $quizId,
+                    'user_answer' => $userAnswer,
+                    'correct_answer' => $quiz->correct_answer,
+                    'is_correct' => $isCorrect,
+                    'was_answered' => $wasAnswered
+                ]);
+
+                // Create attempt answer with session_id (your logic + session support)
+                AttemptAnswer::create([
+                    'user_id' => $userId,
+                    'lesson_id' => $lessonId,
+                    'module_id' => $moduleId,
+                    'quiz_id' => $quizId,
+                    'session_id' => $sessionId, // NEW: Session ID
                     'user_answer' => $wasAnswered ? $userAnswer : null,
                     'correct_answer' => $quiz->correct_answer,
-                    'auto_mark' => $isCorrect, // Your model uses boolean
-                    'was_answered' => $wasAnswered, // NEW field
-                    'attempt_status' => $isTimeoutSubmission ? 'timed_out' : 'completed', // Your status values
-                    'attempt_started_at' => $attemptStarted,
-                    'attempt_completed_at' => $attemptCompleted,
+                    'auto_mark' => $isCorrect,
+                    'was_answered' => $wasAnswered,
+                    'attempt_status' => $sessionStatus,
+                    'attempt_started_at' => $sessionStartTime,
+                    'attempt_completed_at' => $sessionEndTime,
+                    'session_started_at' => $sessionStartTime,
+                    'session_completed_at' => $sessionEndTime,
+                    'session_status' => $sessionStatus,
                     'total_questions' => $totalQuestions,
                     'correct_answers' => $correctAnswers,
                     'score_percentage' => $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0,
                 ]);
-            } catch (\Exception $e) {
-                Log::error('Failed to save individual answer: ' . $e->getMessage());
-                // Continue processing other answers
             }
-        }
 
-        // Calculate pass percentage based on total questions
-        $passPercentage = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
+            // Calculate pass percentage (your existing logic)
+            $passPercentage = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
+            $passed = $passPercentage >= 70;
 
-        // Enhanced logging for timeout submissions
-        $submissionTypeLabel = $isTimeoutSubmission ? 'timeout' : 'manual';
-        Log::info("Quiz completed via {$submissionTypeLabel} submission", [
-            'total_questions' => $totalQuestions,
-            'answered_questions' => $answeredQuestions,
-            'unanswered_questions' => $unansweredQuestions,
-            'correct_answers' => $correctAnswers,
-            'pass_percentage' => $passPercentage,
-            'submission_status' => $submissionType
-        ]);
+            // Update lesson user activity if passed (your existing logic)
+            if ($passed) {
+                $lessonActivity = LessonUserActivity::where('user_id', $userId)
+                    ->where('lesson_id', $lessonId)
+                    ->first();
 
-        // Log quiz completion with enhanced data (if you have AuditTrail)
-        try {
-            if (class_exists('App\Models\AuditTrail')) {
-                AuditTrail::logActivity(
-                    $request->user_id,
-                    'quiz_completed',
-                    'Quiz Completion',
-                    "Completed quiz with score: {$passPercentage}% ({$submissionTypeLabel} submission)",
-                    [
-                        'resource_id' => $request->lesson_id,
-                        'resource_type' => 'quiz',
-                        'module_id' => $request->module_id,
-                        'total_questions' => $totalQuestions,
-                        'answered_questions' => $answeredQuestions,
-                        'unanswered_questions' => $unansweredQuestions,
-                        'correct_answers' => $correctAnswers,
-                        'score_percentage' => $passPercentage,
-                        'pass_status' => $passPercentage >= 70 ? 'Passed' : 'Failed',
-                        'submission_type' => $submissionTypeLabel,
-                        'attempt_status' => $submissionType,
-                    ]
-                );
+                if ($lessonActivity) {
+                    $lessonActivity->lesson_completed = true;
+                    $lessonActivity->save();
+                }
             }
+
+            // Enhanced logging for timeout submissions (your existing logic)
+            $submissionTypeLabel = $isTimeoutSubmission ? 'timeout' : 'manual';
+            Log::info("Quiz completed via {$submissionTypeLabel} submission", [
+                'session_id' => $sessionId,
+                'total_questions' => $totalQuestions,
+                'answered_questions' => $answeredQuestions,
+                'unanswered_questions' => $unansweredQuestions,
+                'correct_answers' => $correctAnswers,
+                'pass_percentage' => $passPercentage,
+                'submission_status' => $submissionType
+            ]);
+
+            // Log comprehensive activity (your existing logic + session info)
+            AuditTrail::logActivity(
+                $userId,
+                'quiz_completed',
+                'Quiz',
+                "Completed quiz session {$sessionId} with score: {$passPercentage}% (" .
+                ($passed ? 'PASSED' : 'FAILED') . ") via {$submissionTypeLabel} submission",
+                [
+                    'resource_id' => $lessonId,
+                    'resource_type' => 'quiz',
+                    'module_id' => $moduleId,
+                    'session_id' => $sessionId,
+                    'total_questions' => $totalQuestions,
+                    'answered_questions' => $answeredQuestions,
+                    'unanswered_questions' => $unansweredQuestions,
+                    'correct_answers' => $correctAnswers,
+                    'score_percentage' => $passPercentage,
+                    'pass_status' => $passed ? 'Passed' : 'Failed',
+                    'submission_type' => $submissionTypeLabel,
+                    'attempt_status' => $submissionType,
+                ]
+            );
+
+            // Update module progress (your existing logic)
+            $this->updateModuleProgress($userId, $moduleId);
+
+            DB::commit();
+
+            Log::info('Quiz marking completed successfully', [
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'score_percentage' => $passPercentage,
+                'passed' => $passed,
+                'correct_answers' => $correctAnswers,
+                'total_questions' => $totalQuestions
+            ]);
+
+            // Your existing custom response format
+            $customResponse = [
+                "success" => true,
+                "message" => "Quiz completed successfully",
+                "session_id" => $sessionId, // NEW: Include session ID
+                "total_questions" => $totalQuestions,
+                "answered_questions" => $answeredQuestions,
+                "unanswered_questions" => $unansweredQuestions,
+                "total_correct" => $correctAnswers,
+                "total_wrong" => $totalQuestions - $correctAnswers,
+                "pass_percentage" => $passPercentage,
+                "pass_status" => $passed ? "Passed" : "Failed",
+                "submission_type" => $submissionTypeLabel,
+                "attempt_status" => $submissionType,
+                "session_status" => $sessionStatus, // NEW: Session status
+                "results" => $answerResult,
+            ];
+
+            Log::info("Quiz Results", $customResponse);
+            return response()->json($customResponse);
+
         } catch (\Exception $e) {
-            Log::error('Failed to log quiz completion: ' . $e->getMessage());
+            DB::rollBack();
+
+            Log::error('Quiz marking error: ' . $e->getMessage(), [
+                'user_id' => $request->user_id ?? null,
+                'lesson_id' => $request->lesson_id ?? null,
+                'session_id' => $request->session_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to complete quiz',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $customResponse = [
-            "success" => true,
-            "message" => "Quiz completed successfully",
-            "total_questions" => $totalQuestions,
-            "answered_questions" => $answeredQuestions,
-            "unanswered_questions" => $unansweredQuestions,
-            "total_correct" => $correctAnswers,
-            "total_wrong" => $totalQuestions - $correctAnswers,
-            "pass_percentage" => $passPercentage,
-            "pass_status" => $passPercentage >= 70 ? "Passed" : "Failed",
-            "submission_type" => $submissionTypeLabel,
-            "attempt_status" => $submissionType,
-            "results" => $answerResult,
-        ];
-
-        Log::info("Quiz Results", $customResponse);
-        return response()->json($customResponse);
-
-    } catch (\Exception $e) {
-        Log::error('Quiz marking error: ' . $e->getMessage(), [
-            'request' => $request->all(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            "success" => false,
-            "message" => "Failed to process quiz answers",
-            "error" => $e->getMessage()
-        ], 500);
     }
-}
 
     /**
-     * Update module progress based on completed activities
+     * NEW: Abandon a quiz session - call this when user leaves without completing
+     */
+    public function abandonQuizSession(Request $request)
+    {
+        try {
+            $request->validate([
+                'session_id' => 'required|string'
+            ]);
+
+            $sessionId = $request->session_id;
+
+            // Update all attempts in this session to abandoned status
+            $updatedCount = AttemptAnswer::where('session_id', $sessionId)
+                ->update([
+                    'session_completed_at' => now(),
+                    'session_status' => 'abandoned'
+                ]);
+
+            Log::info('Quiz session abandoned', [
+                'session_id' => $sessionId,
+                'attempts_updated' => $updatedCount,
+                'abandoned_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quiz session abandoned',
+                'session_id' => $sessionId,
+                'abandoned_at' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Quiz session abandon error: ' . $e->getMessage(), [
+                'session_id' => $request->session_id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to abandon session',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * NEW: Get session status - useful for checking if a session is still active
+     */
+    public function getSessionStatus(Request $request)
+    {
+        try {
+            $request->validate([
+                'session_id' => 'required|string'
+            ]);
+
+            $sessionId = $request->session_id;
+            $stats = AttemptAnswer::getSessionStatsStatic($sessionId);
+
+            if (!$stats) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'session_stats' => $stats
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get session status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * YOUR EXISTING METHOD - Update module progress based on completed activities
      */
     private function updateModuleProgress($userId, $moduleId)
     {
@@ -489,12 +467,16 @@ class ModuleController extends Controller
                 ->where('lesson_completed', true)
                 ->count();
 
-            // Count passed quizzes
+            // UPDATED: Count passed quizzes using session-based approach
             $passedQuizzes = AttemptAnswer::where('user_id', $userId)
                 ->where('module_id', $moduleId)
-                ->where('attempt_status', 'completed')
-                ->where('auto_mark', 1)
-                ->distinct('lesson_id')
+                ->whereNotNull('session_id')
+                ->get()
+                ->groupBy('session_id')
+                ->filter(function ($sessionAttempts) {
+                    $sessionStats = AttemptAnswer::getSessionStatsStatic($sessionAttempts->first()->session_id);
+                    return $sessionStats && $sessionStats['passed'];
+                })
                 ->count();
 
             // Get total lessons and quizzes for this module
@@ -548,22 +530,32 @@ class ModuleController extends Controller
     }
 
     /**
-     * Get quiz history for a user
+     * YOUR EXISTING METHOD - Get quiz history for a user
      */
     public function getQuizHistory(Request $request)
     {
         try {
             $userId = $request->get('user_id', auth()->id());
 
-            $attempts = AttemptAnswer::where('user_id', $userId)
-                ->where('attempt_status', 'completed')
-                ->with(['lesson', 'lesson.module'])
-                ->orderBy('attempt_completed_at', 'desc')
-                ->get();
+            // UPDATED: Use session-based approach for quiz history
+            $sessionIds = AttemptAnswer::where('user_id', $userId)
+                ->whereNotNull('session_id')
+                ->where('session_status', '!=', 'in_progress')
+                ->distinct('session_id')
+                ->orderBy('session_completed_at', 'desc')
+                ->pluck('session_id');
+
+            $history = [];
+            foreach ($sessionIds as $sessionId) {
+                $sessionStats = AttemptAnswer::getSessionStatsStatic($sessionId);
+                if ($sessionStats) {
+                    $history[] = $sessionStats;
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'data' => $attempts
+                'data' => $history
             ]);
 
         } catch (\Exception $e) {
@@ -572,6 +564,233 @@ class ModuleController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve quiz history'
+            ], 500);
+        }
+    }
+
+    // Add this method to your ModuleController.php class
+
+    /**
+     * Get module lessons summary for assigned modules page
+     */
+    public function getModuleLessons(Request $request)
+    {
+        try {
+            $request->validate([
+                'module_id' => 'required|exists:modules,id'
+            ]);
+
+            $moduleId = $request->module_id;
+
+            // Check if user has access to this module
+            if (auth()->check()) {
+                $hasAccess = auth()->user()->modules()->where('module_id', $moduleId)->exists();
+                if (!$hasAccess) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Access denied to this module'
+                    ], 403);
+                }
+            }
+
+            // Get module with lessons count
+            $module = \App\Models\Module::with('lessons')->find($moduleId);
+
+            if (!$module) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Module not found'
+                ], 404);
+            }
+
+            $totalLessons = $module->lessons->count();
+
+            // Optional: Get user progress if authenticated
+            $userProgress = null;
+            if (auth()->check()) {
+                $userProgress = \App\Models\UserModuleProgress::where('user_id', auth()->id())
+                    ->where('module_id', $moduleId)
+                    ->first();
+            }
+
+            return response()->json([
+                'success' => true,
+                'total_lessons' => $totalLessons,
+                'module' => [
+                    'id' => $module->id,
+                    'title' => $module->title,
+                    'description' => $module->description
+                ],
+                'progress' => $userProgress ? [
+                    'overall_progress' => $userProgress->overall_progress ?? 0,
+                    'completed_lessons' => $userProgress->completed_lessons ?? 0,
+                    'status' => $userProgress->status ?? 'assigned'
+                ] : null
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid module ID',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to get module lessons: ' . $e->getMessage(), [
+                'module_id' => $request->module_id ?? null,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve module lessons'
+            ], 500);
+        }
+    }
+
+    /**
+     * LEGACY: Keep your original startQuizAttempt method for backwards compatibility
+     */
+    public function startQuizAttempt(Request $request)
+    {
+        try {
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'lesson_id' => 'required|exists:lessons,id'
+            ]);
+
+            $userId = $request->user_id;
+            $lessonId = $request->lesson_id;
+
+            Log::info('Starting quiz attempt for timer', [
+                'user_id' => $userId,
+                'lesson_id' => $lessonId
+            ]);
+
+            // Get lesson
+            $lesson = \App\Models\Lesson::find($lessonId);
+            if (!$lesson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lesson not found'
+                ], 404);
+            }
+
+            // Get timer settings - with fallback if method doesn't exist
+            $timerSettings = [
+                'enabled' => true,
+                'duration_minutes' => 10,
+                'duration_seconds' => 600,
+                'warning_time_seconds' => 300, // 5 minutes warning
+                'show_warning' => true,
+                'auto_submit' => true
+            ];
+
+            // Try to get custom timer settings if method exists
+            if (method_exists($lesson, 'getTimerSettings')) {
+                try {
+                    $customSettings = $lesson->getTimerSettings();
+                    $timerSettings = array_merge($timerSettings, $customSettings);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to get custom timer settings, using defaults');
+                }
+            }
+
+            // Calculate expiration time
+            $sessionStartTime = now();
+            $timerExpiresAt = $timerSettings['enabled']
+                ? $sessionStartTime->copy()->addMinutes($timerSettings['duration_minutes'])
+                : null;
+
+            // Check for existing active attempt
+            $existingAttempt = \App\Models\AttemptAnswer::where('user_id', $userId)
+                ->where('lesson_id', $lessonId)
+                ->whereIn('attempt_status', ['started', 'in_progress'])
+                ->whereNull('attempt_completed_at')
+                ->first();
+
+            if ($existingAttempt && $existingAttempt->timer_expires_at) {
+                // Return existing attempt with remaining time
+                Log::info('Resuming existing quiz attempt', [
+                    'attempt_id' => $existingAttempt->id,
+                    'expires_at' => $existingAttempt->timer_expires_at
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Quiz attempt resumed',
+                    'attempt_id' => $existingAttempt->id,
+                    'timer_settings' => $timerSettings,
+                    'timer_expires_at' => $existingAttempt->timer_expires_at->toISOString(),
+                    'server_time' => now()->toISOString()
+                ]);
+            }
+
+            // Create new attempt record for timer tracking
+            $attempt = \App\Models\AttemptAnswer::create([
+                'user_id' => $userId,
+                'lesson_id' => $lessonId,
+                'module_id' => $lesson->module_id,
+                'attempt_started_at' => $sessionStartTime,
+                'attempt_status' => 'started',
+                'timer_settings' => json_encode($timerSettings),
+                'timer_expires_at' => $timerExpiresAt,
+                'session_started_at' => $sessionStartTime,
+                'session_status' => 'in_progress'
+            ]);
+
+            // Try to log activity (but don't fail if it doesn't work)
+            try {
+                $this->activityService?->trackLessonAccess($userId, $lessonId, $lesson->module_id);
+            } catch (\Exception $e) {
+                Log::warning('Activity tracking failed during quiz start');
+            }
+
+            // Simple audit log
+            try {
+                \App\Models\AuditTrail::create([
+                    'user_id' => $userId,
+                    'action_type' => 'quiz_started',
+                    'module' => 'Quiz',
+                    'activity_description' => "Started quiz attempt for lesson: {$lesson->title}",
+                    'activity_timestamp' => now(),
+                    'additional_data' => json_encode([
+                        'lesson_id' => $lessonId,
+                        'attempt_id' => $attempt->id,
+                        'timer_enabled' => $timerSettings['enabled']
+                    ])
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Audit trail failed during quiz start');
+            }
+
+            Log::info('Quiz attempt started successfully for timer', [
+                'attempt_id' => $attempt->id,
+                'timer_enabled' => $timerSettings['enabled'],
+                'expires_at' => $timerExpiresAt?->toISOString()
+            ]);
+
+            // Return format expected by timer JavaScript
+            return response()->json([
+                'success' => true,
+                'message' => 'Quiz attempt started successfully',
+                'attempt_id' => $attempt->id,
+                'timer_settings' => $timerSettings,
+                'timer_expires_at' => $timerExpiresAt ? $timerExpiresAt->toISOString() : null,
+                'server_time' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Quiz attempt start error: ' . $e->getMessage(), [
+                'user_id' => $request->user_id ?? null,
+                'lesson_id' => $request->lesson_id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start quiz attempt: ' . $e->getMessage()
             ], 500);
         }
     }

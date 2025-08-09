@@ -596,104 +596,230 @@ class UserResource extends Resource
                     ->openUrlInNewTab(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    ActionsExportBulkAction::make()
-                        ->label('Download Users Report'),
+    Tables\Actions\BulkActionGroup::make([
+        // FIXED: Custom CSV Export (replaces the problematic ActionsExportBulkAction)
+        Tables\Actions\BulkAction::make('export')
+            ->label('Download Users Report')
+            ->icon('heroicon-o-arrow-down-tray')
+            ->color('success')
+            ->action(function (Collection $records) {
+                $filename = 'users_report_' . now()->format('Y_m_d_H_i_s') . '.csv';
 
-                    Tables\Actions\BulkAction::make('assignModules')
-                        ->label('Mass Assign Modules')
-                        ->icon('heroicon-o-book-open')
-                        ->action(function (Collection $records, array $data): void {
-                            try {
-                                $activityService = app(ActivityTrackingService::class);
+                $headers = [
+                    'Content-Type' => 'text/csv',
+                    'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                ];
 
-                                foreach ($records as $record) {
-                                    $previousModules = $record->modules()->pluck('id')->toArray();
-                                    $record->modules()->syncWithoutDetaching($data['modules']);
+                $callback = function() use ($records) {
+                    $file = fopen('php://output', 'w');
 
-                                    // Track activity for newly assigned modules
-                                    $newModules = array_diff($data['modules'], $previousModules);
-                                    foreach ($newModules as $moduleId) {
-                                        $activityService->trackModuleAssignment($record->id, $moduleId, auth()->id());
-                                    }
-                                }
+                    // CSV Headers
+                    fputcsv($file, [
+                        'ID',
+                        'Name',
+                        'Email',
+                        'Role',
+                        'Branch',
+                        'Assigned Modules',
+                        'Overall Progress (%)',
+                        'Last Activity',
+                        'Total Quiz Attempts',
+                        'Average Quiz Score (%)',
+                        'Created At',
+                        'Updated At'
+                    ]);
 
-                                Notification::make()
-                                    ->title('Modules Assigned Successfully')
-                                    ->body(count($records) . ' users have been assigned ' . count($data['modules']) . ' modules')
-                                    ->success()
-                                    ->send();
-                            } catch (\Exception $e) {
-                                Notification::make()
-                                    ->title('Assignment Failed')
-                                    ->body('Error occurred while assigning modules')
-                                    ->danger()
-                                    ->send();
+                    // CSV Data
+                    foreach ($records as $user) {
+                        // Get assigned modules
+                        $assignedModules = $user->modules()->pluck('title')->join(', ');
+
+                        // Calculate overall progress
+                        $totalModules = $user->modules()->count();
+                        $completedModules = 0;
+                        if ($totalModules > 0) {
+                            $completedModules = \App\Models\UserModuleProgress::where('user_id', $user->id)
+                                ->where('status', 'completed')
+                                ->count();
+                        }
+                        $overallProgress = $totalModules > 0 ? round(($completedModules / $totalModules) * 100, 1) : 0;
+
+                        // Get last activity
+                        $lastActivity = \App\Models\AuditTrail::where('user_id', $user->id)
+                            ->orderBy('activity_timestamp', 'desc')
+                            ->first();
+                        $lastActivityFormatted = $lastActivity ? $lastActivity->activity_timestamp->format('Y-m-d H:i:s') : 'No activity';
+
+                        // Get quiz stats
+                        $totalQuizAttempts = \App\Models\AttemptAnswer::where('user_id', $user->id)
+                            ->where('attempt_status', 'completed')
+                            ->count();
+
+                        $averageQuizScore = \App\Models\AttemptAnswer::where('user_id', $user->id)
+                            ->where('attempt_status', 'completed')
+                            ->avg('score_percentage');
+                        $averageQuizScore = $averageQuizScore ? round($averageQuizScore, 2) : 0;
+
+                        fputcsv($file, [
+                            $user->id,
+                            $user->name,
+                            $user->email,
+                            $user->role->name ?? 'N/A',
+                            $user->branch->name ?? 'N/A',
+                            $assignedModules ?: 'No modules assigned',
+                            $overallProgress,
+                            $lastActivityFormatted,
+                            $totalQuizAttempts,
+                            $averageQuizScore,
+                            $user->created_at->format('Y-m-d H:i:s'),
+                            $user->updated_at->format('Y-m-d H:i:s')
+                        ]);
+                    }
+
+                    fclose($file);
+                };
+
+                return response()->stream($callback, 200, $headers);
+            }),
+
+        Tables\Actions\BulkAction::make('assignModules')
+            ->label('Mass Assign Modules')
+            ->icon('heroicon-o-book-open')
+            ->action(function (Collection $records, array $data): void {
+                try {
+                    foreach ($records as $record) {
+                        // Simple assignment without activity tracking
+                        $record->modules()->syncWithoutDetaching($data['modules']);
+
+                        // Create/update UserModuleProgress records
+                        foreach ($data['modules'] as $moduleId) {
+                            $module = \App\Models\Module::find($moduleId);
+                            if ($module) {
+                                $totalLessons = $module->lessons()->count();
+                                $totalQuizzes = \DB::table('quizzs')
+                                    ->whereIn('lesson_id', $module->lessons()->pluck('id'))
+                                    ->count();
+
+                                \App\Models\UserModuleProgress::updateOrCreate(
+                                    ['user_id' => $record->id, 'module_id' => $moduleId],
+                                    [
+                                        'assigned_at' => now(),
+                                        'total_lessons' => $totalLessons,
+                                        'total_quizzes' => $totalQuizzes,
+                                        'overall_progress' => 0,
+                                        'status' => 'assigned'
+                                    ]
+                                );
                             }
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->form([
-                            Forms\Components\Select::make('modules')
-                                ->multiple()
-                                ->preload()
-                                ->label('Select Modules')
-                                ->options(function () {
-                                    return \App\Models\Module::pluck('title', 'id');
-                                })
-                                ->required(),
-                        ]),
+                        }
 
-                    Tables\Actions\BulkAction::make('unassignModules')
-                        ->label('Unassign Modules')
-                        ->icon('heroicon-o-book-open')
-                        ->color('danger')
-                        ->action(function (Collection $records, array $data): void {
-                            try {
-                                foreach ($records as $record) {
-                                    $record->modules()->detach($data['modules']);
+                        // Simple audit log without ActivityTrackingService
+                        foreach ($data['modules'] as $moduleId) {
+                            \App\Models\AuditTrail::create([
+                                'user_id' => auth()->id(),
+                                'action_type' => 'module_assigned',
+                                'module' => 'Module Assignment',
+                                'activity_description' => "Assigned module to user: {$record->name}",
+                                'activity_timestamp' => now(),
+                                'additional_data' => json_encode([
+                                    'resource_id' => $moduleId,
+                                    'resource_type' => 'module',
+                                    'target_user_id' => $record->id
+                                ])
+                            ]);
+                        }
+                    }
 
-                                    // Log unassignment activity
-                                    foreach ($data['modules'] as $moduleId) {
-                                        \App\Models\AuditTrail::logActivity(
-                                            auth()->id(),
-                                            'module_unassigned',
-                                            'Module Assignment',
-                                            "Unassigned module from user: {$record->name}",
-                                            [
-                                                'resource_id' => $moduleId,
-                                                'resource_type' => 'module',
-                                                'target_user_id' => $record->id
-                                            ]
-                                        );
-                                    }
-                                }
+                    Notification::make()
+                        ->title('Modules Assigned Successfully')
+                        ->body(count($records) . ' users have been assigned ' . count($data['modules']) . ' modules')
+                        ->success()
+                        ->send();
 
-                                Notification::make()
-                                    ->title('Modules Unassigned Successfully')
-                                    ->body(count($records) . ' users have been unassigned from ' . count($data['modules']) . ' modules')
-                                    ->warning()
-                                    ->send();
-                            } catch (\Exception $e) {
-                                Notification::make()
-                                    ->title('Unassignment Failed')
-                                    ->body('Error occurred while unassigning modules')
-                                    ->danger()
-                                    ->send();
-                            }
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->form([
-                            Forms\Components\Select::make('modules')
-                                ->multiple()
-                                ->preload()
-                                ->label('Select Modules to Unassign')
-                                ->options(function () {
-                                    return \App\Models\Module::pluck('title', 'id')->filter()->toArray();
-                                })
-                                ->required(),
-                        ])
-                        ->requiresConfirmation(),
-                ])
+                } catch (\Exception $e) {
+                    \Log::error('Module assignment failed: ' . $e->getMessage(), [
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+
+                    Notification::make()
+                        ->title('Assignment Failed')
+                        ->body('Error: ' . $e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            })
+            ->deselectRecordsAfterCompletion()
+            ->form([
+                Forms\Components\Select::make('modules')
+                    ->multiple()
+                    ->preload()
+                    ->label('Select Modules')
+                    ->options(function () {
+                        return \App\Models\Module::pluck('title', 'id');
+                    })
+                    ->required(),
+            ]),
+
+        Tables\Actions\BulkAction::make('unassignModules')
+            ->label('Unassign Modules')
+            ->icon('heroicon-o-book-open')
+            ->color('danger')
+            ->action(function (Collection $records, array $data): void {
+                try {
+                    foreach ($records as $record) {
+                        $record->modules()->detach($data['modules']);
+
+                        // Remove UserModuleProgress records for unassigned modules
+                        \App\Models\UserModuleProgress::where('user_id', $record->id)
+                            ->whereIn('module_id', $data['modules'])
+                            ->delete();
+
+                        // Log unassignment activity
+                        foreach ($data['modules'] as $moduleId) {
+                            \App\Models\AuditTrail::create([
+                                'user_id' => auth()->id(),
+                                'action_type' => 'module_unassigned',
+                                'module' => 'Module Assignment',
+                                'activity_description' => "Unassigned module from user: {$record->name}",
+                                'activity_timestamp' => now(),
+                                'additional_data' => json_encode([
+                                    'resource_id' => $moduleId,
+                                    'resource_type' => 'module',
+                                    'target_user_id' => $record->id
+                                ])
+                            ]);
+                        }
+                    }
+
+                    Notification::make()
+                        ->title('Modules Unassigned Successfully')
+                        ->body(count($records) . ' users have been unassigned from ' . count($data['modules']) . ' modules')
+                        ->warning()
+                        ->send();
+                } catch (\Exception $e) {
+                    \Log::error('Module unassignment failed: ' . $e->getMessage());
+
+                    Notification::make()
+                        ->title('Unassignment Failed')
+                        ->body('Error occurred while unassigning modules')
+                        ->danger()
+                        ->send();
+                }
+            })
+            ->deselectRecordsAfterCompletion()
+            ->form([
+                Forms\Components\Select::make('modules')
+                    ->multiple()
+                    ->preload()
+                    ->label('Select Modules to Unassign')
+                    ->options(function () {
+                        return \App\Models\Module::pluck('title', 'id');
+                    })
+                    ->required(),
+            ])
+            ->requiresConfirmation(),
+    ])
             ]);
     }
 

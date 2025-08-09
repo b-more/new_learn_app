@@ -1,3 +1,11 @@
+{{-- resources/views/tables/columns/passes.blade.php --}}
+@php
+    use App\Models\AttemptAnswer;
+
+    $userId = $getRecord()->user_id;
+    $passedCount = AttemptAnswer::getUserPassedSessionsCount($userId);
+@endphp
+
 <div class="text-success text-center">
-    {{ \App\Models\AttemptAnswer::where('user_id', auth()->user()->id)->where('auto_mark',1)->count() }}
+    {{ $passedCount }}
 </div>

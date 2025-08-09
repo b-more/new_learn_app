@@ -43,6 +43,7 @@
     margin-bottom: 16px;
     display: flex;
     align-items: center;
+    animation: pulse 2s infinite;
 }
 
 .timer-expired {
@@ -54,6 +55,12 @@
     margin-bottom: 16px;
     display: flex;
     align-items: center;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
 }
 
 .hidden {
@@ -485,7 +492,7 @@
 </div>
 
 <script>
-// Timer Management Class - FIXED VERSION
+// FIXED Timer Management Class with Session Support
 class QuizTimer {
     constructor() {
         this.timerInterval = null;
@@ -493,19 +500,24 @@ class QuizTimer {
         this.totalSeconds = 0;
         this.warningShown = false;
         this.settings = {};
+        this.attemptId = null;
+        this.sessionId = null; // Add session ID storage
     }
 
     async initialize(lessonId, userId) {
         try {
-            console.log('Initializing timer for lesson:', lessonId);
+            console.log('🕐 Initializing timer for lesson:', lessonId, 'user:', userId);
 
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             if (!csrfToken) {
-                console.error('CSRF token not found');
+                console.error('❌ CSRF token not found');
                 return;
             }
 
-            const response = await fetch('/api/start-quiz-attempt', {
+            console.log('📡 Starting quiz session...');
+
+            // Use session-based API instead
+            const response = await fetch('/api/quiz/start-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -514,52 +526,123 @@ class QuizTimer {
                 },
                 body: JSON.stringify({
                     lesson_id: lessonId,
-                    user_id: userId
+                    user_id: userId,
+                    module_id: document.getElementById('module_id')?.value,
+                    expected_questions: document.querySelectorAll('[name^="options_"]').length || 1
                 })
             });
 
+            console.log('📡 API Response status:', response.status);
+
             if (!response.ok) {
-                console.error('Timer initialization failed with status:', response.status);
+                const errorText = await response.text();
+                console.error('❌ API Error Response:', errorText);
+                this.showError(`Session initialization failed (${response.status})`);
                 return;
             }
 
             const data = await response.json();
-            console.log('Timer response:', data);
+            console.log('✅ Session API Response:', data);
 
-            if (data.success && data.timer_settings.enabled) {
-                this.settings = data.timer_settings;
+            if (data.success) {
+                this.sessionId = data.session_id; // Store session ID
+                this.settings = data.timer_settings || { enabled: true, duration_minutes: 10 };
 
-                const serverTime = new Date(data.server_time);
-                const expiresAt = new Date(data.timer_expires_at);
+                // Add session_id to the form
+                this.addSessionIdToForm(this.sessionId);
 
-                this.remainingSeconds = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
-                this.totalSeconds = this.settings.duration_seconds;
+                if (this.settings.enabled && data.timer_expires_at) {
+                    console.log('⏰ Timer is enabled, setting up countdown...');
 
-                this.showTimerDisplay();
-                this.startTimer();
+                    const expiresAt = new Date(data.timer_expires_at);
+                    const now = new Date();
+
+                    this.remainingSeconds = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
+                    this.totalSeconds = this.settings.duration_seconds || (this.settings.duration_minutes * 60) || 600;
+
+                    console.log('⏰ Timer setup:', {
+                        remainingSeconds: this.remainingSeconds,
+                        totalSeconds: this.totalSeconds,
+                        sessionId: this.sessionId,
+                        expiresAt: expiresAt.toLocaleString()
+                    });
+
+                    this.showTimerDisplay();
+                    this.startTimer();
+                } else {
+                    console.log('📝 Timer disabled for this quiz');
+                    this.hideTimerDisplay();
+                }
+            } else {
+                console.error('❌ API returned success: false', data);
+                this.showError(data.message || 'Failed to initialize session');
             }
+
         } catch (error) {
-            console.error('Timer initialization failed:', error);
+            console.error('💥 Timer initialization error:', error);
+            this.showError('Connection error. Please refresh the page.');
         }
+    }
+
+    addSessionIdToForm(sessionId) {
+        // Add session_id as hidden input to the form
+        const form = document.getElementById('quiz_form');
+        if (form && sessionId) {
+            let sessionInput = document.getElementById('session_id_input');
+            if (!sessionInput) {
+                sessionInput = document.createElement('input');
+                sessionInput.type = 'hidden';
+                sessionInput.name = 'session_id';
+                sessionInput.id = 'session_id_input';
+                form.appendChild(sessionInput);
+            }
+            sessionInput.value = sessionId;
+            console.log('✅ Added session_id to form:', sessionId);
+        }
+    }
+
+    showTimerDisplay() {
+        const timerContainer = document.getElementById('quiz-timer-container');
+        if (timerContainer) {
+            timerContainer.classList.remove('hidden');
+            this.updateDisplay(); // Show initial time
+        }
+    }
+
+    hideTimerDisplay() {
+        const timerContainer = document.getElementById('quiz-timer-container');
+        if (timerContainer) {
+            timerContainer.classList.add('hidden');
+        }
+    }
+
+    showError(message) {
+        console.error('Timer Error:', message);
+        // You can add a visual error message here if needed
     }
 
     startTimer() {
         if (this.remainingSeconds <= 0) {
+            console.log('⏰ Timer already expired');
             this.handleTimeout();
             return;
         }
 
+        console.log('▶️ Starting timer countdown...');
         this.timerInterval = setInterval(() => {
             this.remainingSeconds--;
             this.updateDisplay();
 
+            // Show warning if configured
             if (this.settings.show_warning && !this.warningShown) {
-                if (this.remainingSeconds <= this.settings.warning_time_seconds) {
+                const warningSeconds = this.settings.warning_time_seconds || 300;
+                if (this.remainingSeconds <= warningSeconds && this.remainingSeconds > 0) {
                     this.showWarning();
                 }
             }
 
             if (this.remainingSeconds <= 0) {
+                console.log('⏰ Timer expired!');
                 this.handleTimeout();
             }
         }, 1000);
@@ -575,38 +658,40 @@ class QuizTimer {
             timerDisplay.textContent = displayTime;
         }
 
+        // Update progress bar
         const progressFill = document.getElementById('timer-progress-fill');
         if (progressFill && this.totalSeconds > 0) {
-            const percentage = (this.remainingSeconds / this.totalSeconds) * 100;
-            progressFill.style.width = `${Math.max(0, percentage)}%`;
+            const percentage = Math.max(0, (this.remainingSeconds / this.totalSeconds) * 100);
+            progressFill.style.width = `${percentage}%`;
 
-            if (percentage <= 10) {
+            // Change colors based on remaining time
+            if (percentage <= 25) {
                 progressFill.style.background = 'linear-gradient(90deg, #F44336, #E91E63)';
-            } else if (percentage <= 25) {
+                if (timerDisplay) timerDisplay.className = 'timer-display text-red-400';
+            } else if (percentage <= 50) {
                 progressFill.style.background = 'linear-gradient(90deg, #FF9800, #FFC107)';
+                if (timerDisplay) timerDisplay.className = 'timer-display text-orange-400';
             } else {
                 progressFill.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+                if (timerDisplay) timerDisplay.className = 'timer-display text-white';
             }
-        }
-    }
-
-    showTimerDisplay() {
-        const timerContainer = document.getElementById('quiz-timer-container');
-        if (timerContainer) {
-            timerContainer.classList.remove('hidden');
         }
     }
 
     showWarning() {
         this.warningShown = true;
-        const warningElement = document.getElementById('timer-warning');
-        const warningTimeElement = document.getElementById('warning-time');
+        console.log('⚠️ Showing timer warning');
 
-        if (warningElement && warningTimeElement) {
-            const warningMinutes = Math.ceil(this.settings.warning_time_seconds / 60);
-            warningTimeElement.textContent = `${warningMinutes} minute${warningMinutes > 1 ? 's' : ''}`;
+        const warningElement = document.getElementById('timer-warning');
+        if (warningElement) {
+            const warningMinutes = Math.ceil(this.remainingSeconds / 60);
+            const warningTimeElement = document.getElementById('warning-time');
+            if (warningTimeElement) {
+                warningTimeElement.textContent = `${warningMinutes} minute${warningMinutes > 1 ? 's' : ''}`;
+            }
             warningElement.classList.remove('hidden');
 
+            // Auto-hide warning after 10 seconds
             setTimeout(() => {
                 warningElement.classList.add('hidden');
             }, 10000);
@@ -614,309 +699,117 @@ class QuizTimer {
     }
 
     handleTimeout() {
-        if (this.timerInterval) {
-            clearInterval(this.timerInterval);
-        }
+        console.log('🚫 Handling timer expiration...');
+        this.stop();
 
+        // Show timeout alert
         const timeoutAlert = document.getElementById('timeout-alert');
         if (timeoutAlert) {
             timeoutAlert.classList.remove('hidden');
         }
 
-        // Disable form
+        // Disable form inputs
         const form = document.getElementById('quiz_form');
         if (form) {
-            const inputs = form.querySelectorAll('input, button');
-            inputs.forEach(input => {
-                if (input.type !== 'hidden') {
-                    input.disabled = true;
-                }
-            });
+            const inputs = form.querySelectorAll('input:not([type="hidden"]), button');
+            inputs.forEach(input => input.disabled = true);
         }
 
         // Auto-submit if enabled
-        if (this.settings.auto_submit) {
+        if (this.settings.auto_submit !== false) {
             setTimeout(() => {
                 this.autoSubmitQuiz();
             }, 3000);
         }
     }
 
-    // async autoSubmitQuiz() {
-    //     console.log('=== AUTO SUBMIT STARTED ===');
-
-    //     const form = document.getElementById('quiz_form');
-    //     if (!form) {
-    //         console.error('Quiz form not found');
-    //         return;
-    //     }
-
-    //     // Show loading
-    //     document.getElementById('loading')?.classList.remove('hidden');
-    //     document.getElementById('selected_quiz')?.classList.add('hidden');
-
-    //     try {
-    //         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    //         if (!csrfToken) {
-    //             throw new Error('CSRF token not found');
-    //         }
-
-    //         // Get all radio inputs and group by question
-    //         const radioInputs = form.querySelectorAll('input[type="radio"]');
-    //         const questionGroups = {};
-
-    //         radioInputs.forEach(radio => {
-    //             if (radio.name.startsWith('options_')) {
-    //                 const quizId = radio.name.replace('options_', '');
-    //                 if (!questionGroups[quizId]) {
-    //                     questionGroups[quizId] = {
-    //                         name: radio.name,
-    //                         hasAnswer: false,
-    //                         elements: []
-    //                     };
-    //                 }
-    //                 questionGroups[quizId].elements.push(radio);
-    //                 if (radio.checked) {
-    //                     questionGroups[quizId].hasAnswer = true;
-    //                 }
-    //             }
-    //         });
-
-    //         console.log('Question groups found:', questionGroups);
-
-    //         // Create FormData manually
-    //         const formData = new FormData();
-
-    //         // Add hidden fields
-    //         const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
-    //         hiddenInputs.forEach(input => {
-    //             if (input.name && input.value) {
-    //                 formData.append(input.name, input.value);
-    //             }
-    //         });
-
-    //         // Add radio button answers or UNANSWERED for unanswered questions
-    //         let answeredCount = 0;
-    //         let unansweredCount = 0;
-
-    //         Object.keys(questionGroups).forEach(quizId => {
-    //             const checkedRadio = questionGroups[quizId].elements.find(radio => radio.checked);
-    //             if (checkedRadio) {
-    //                 // User answered this question
-    //                 formData.append(checkedRadio.name, checkedRadio.value);
-    //                 console.log(`User answered: ${checkedRadio.name} = ${checkedRadio.value}`);
-    //                 answeredCount++;
-    //             } else {
-    //                 // User didn't answer - mark as UNANSWERED (will be marked wrong)
-    //                 formData.append(`options_${quizId}`, 'UNANSWERED');
-    //                 console.log(`Unanswered question: options_${quizId} = UNANSWERED`);
-    //                 unansweredCount++;
-    //             }
-    //         });
-
-    //         // Debug: Log final FormData
-    //         console.log('Final FormData contents:');
-    //         for (let [key, value] of formData.entries()) {
-    //             console.log(`${key}: ${value}`);
-    //         }
-
-    //         console.log(`Summary: ${answeredCount} answered, ${unansweredCount} unanswered`);
-
-    //         const response = await fetch('/api/marking', {
-    //             method: 'POST',
-    //             headers: {
-    //                 'X-CSRF-TOKEN': csrfToken,
-    //                 'Accept': 'application/json',
-    //             },
-    //             body: formData
-    //         });
-
-    //         console.log('Response status:', response.status);
-
-    //         if (response.status === 408) {
-    //             alert(`Quiz time expired!\n\nAnswered: ${answeredCount}\nUnanswered: ${unansweredCount}\n\nUnanswered questions were marked as incorrect.`);
-    //             window.location.reload();
-    //             return;
-    //         }
-
-    //         if (response.status === 422) {
-    //             const errorData = await response.json();
-    //             console.error('Validation errors:', errorData);
-    //             alert('Validation failed during auto-submission.');
-    //             return;
-    //         }
-
-    //         if (!response.ok) {
-    //             const errorText = await response.text();
-    //             console.error('Auto-submit failed:', response.status, errorText);
-    //             throw new Error(`Server error: ${response.status}`);
-    //         }
-
-    //         const result = await response.json();
-    //         console.log('Auto-submit result:', result);
-
-    //         if (result.success) {
-    //             const score = result.pass_percentage || 0;
-    //             const status = result.pass_status || 'Unknown';
-
-    //             alert(`Quiz auto-submitted due to timeout!\n\nScore: ${score}%\nStatus: ${status}\n\nAnswered: ${answeredCount}\nUnanswered: ${unansweredCount} (marked incorrect)`);
-
-    //             setTimeout(() => {
-    //                 window.location.reload();
-    //             }, 2000);
-    //         } else {
-    //             throw new Error(result.message || 'Auto-submission failed');
-    //         }
-
-    //     } catch (error) {
-    //         console.error('Auto-submit error:', error);
-    //         alert(`Auto-submit failed: ${error.message}\n\nPage will reload for manual submission.`);
-
-    //         setTimeout(() => {
-    //             window.location.reload();
-    //         }, 3000);
-    //     }
-    // }
-
     async autoSubmitQuiz() {
-    console.log('=== AUTO SUBMIT STARTED ===');
+        try {
+            console.log('🔄 Auto-submitting quiz...');
 
-    const form = document.getElementById('quiz_form');
-    if (!form) {
-        console.error('Quiz form not found');
-        return;
-    }
-
-    // Show loading
-    document.getElementById('loading')?.classList.remove('hidden');
-    document.getElementById('selected_quiz')?.classList.add('hidden');
-
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (!csrfToken) {
-            throw new Error('CSRF token not found');
-        }
-
-        // Get all radio inputs and group by question
-        const radioInputs = form.querySelectorAll('input[type="radio"]');
-        const questionGroups = {};
-
-        radioInputs.forEach(radio => {
-            if (radio.name.startsWith('options_')) {
-                const quizId = radio.name.replace('options_', '');
-                if (!questionGroups[quizId]) {
-                    questionGroups[quizId] = {
-                        name: radio.name,
-                        hasAnswer: false,
-                        elements: []
-                    };
-                }
-                questionGroups[quizId].elements.push(radio);
-                if (radio.checked) {
-                    questionGroups[quizId].hasAnswer = true;
-                }
+            const form = document.getElementById('quiz_form');
+            if (!form) {
+                console.error('❌ Quiz form not found for auto-submission');
+                return;
             }
-        });
 
-        console.log('Question groups found:', questionGroups);
+            // Show loading
+            document.getElementById('loading')?.classList.remove('hidden');
+            document.getElementById('selected_quiz')?.classList.add('hidden');
 
-        // Create FormData manually
-        const formData = new FormData();
+            const formData = new FormData(form);
 
-        // Add hidden fields
-        const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
-        hiddenInputs.forEach(input => {
-            if (input.name && input.value) {
-                formData.append(input.name, input.value);
-            }
-        });
-
-        // Add radio button answers or UNANSWERED for unanswered questions
-        let answeredCount = 0;
-        let unansweredCount = 0;
-
-        Object.keys(questionGroups).forEach(quizId => {
-            const checkedRadio = questionGroups[quizId].elements.find(radio => radio.checked);
-            if (checkedRadio) {
-                // User answered this question
-                formData.append(checkedRadio.name, checkedRadio.value);
-                console.log(`User answered: ${checkedRadio.name} = ${checkedRadio.value}`);
-                answeredCount++;
+            // Ensure session_id is present
+            if (this.sessionId) {
+                formData.set('session_id', this.sessionId);
             } else {
-                // User didn't answer - mark as UNANSWERED (will be marked wrong)
-                formData.append(`options_${quizId}`, 'UNANSWERED');
-                console.log(`Unanswered question: options_${quizId} = UNANSWERED`);
-                unansweredCount++;
+                // Generate a fallback session ID
+                const lessonId = document.getElementById('lesson_id')?.value;
+                const userId = document.querySelector('input[name="user_id"]')?.value;
+                const timestamp = Date.now();
+                const sessionId = `timeout_${lessonId}_${userId}_${timestamp}`;
+                formData.set('session_id', sessionId);
+                console.log('Generated fallback session ID:', sessionId);
             }
-        });
 
-        // Debug: Log final FormData
-        console.log('Final FormData contents:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
-        }
+            // Add timeout submission indicators
+            formData.set('timeout_submission', 'true');
 
-        console.log(`Summary: ${answeredCount} answered, ${unansweredCount} unanswered`);
+            // Log what we're sending
+            console.log('Auto-submitting with data:', {
+                session_id: formData.get('session_id'),
+                user_id: formData.get('user_id'),
+                lesson_id: formData.get('lesson_id'),
+                module_id: formData.get('module_id')
+            });
 
-        const response = await fetch('/api/marking', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-                'X-Timeout-Submission': 'true', // Indicate this is a timeout submission
-                'X-Submission-Type': 'timed_out', // Use your model's status value
-            },
-            body: formData
-        });
+            const response = await fetch('/api/quiz/marking', {
+                method: 'POST',
+                headers: {
+                    'X-Timeout-Submission': 'true',
+                    'X-Submission-Type': 'timed_out',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                },
+                body: formData
+            });
 
-        console.log('Response status:', response.status);
+            console.log('Auto-submit response status:', response.status);
 
-        if (response.status === 408) {
-            alert(`Quiz time expired!\n\nAnswered: ${answeredCount}\nUnanswered: ${unansweredCount}\n\nUnanswered questions were marked as incorrect.`);
-            window.location.reload();
-            return;
-        }
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Auto-submit HTTP error:', errorText);
+                throw new Error(`Server error ${response.status}`);
+            }
 
-        if (response.status === 422) {
-            const errorData = await response.json();
-            console.error('Validation errors:', errorData);
-            alert('Validation failed during auto-submission.');
-            return;
-        }
+            const result = await response.json();
+            console.log('Auto-submit result:', result);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Auto-submit failed:', response.status, errorText);
-            throw new Error(`Server error: ${response.status}`);
-        }
+            if (result.success) {
+                console.log('✅ Auto-submission successful');
+                alert('Time expired! Your quiz has been automatically submitted.');
+                window.location.reload();
+            } else {
+                throw new Error(result.message || 'Auto-submission failed');
+            }
 
-        const result = await response.json();
-        console.log('Auto-submit result:', result);
+        } catch (error) {
+            console.error('💥 Auto-submit error:', error);
+            alert(`Auto-submit failed: ${error.message}\n\nPage will reload for manual submission.`);
 
-        if (result.success) {
-            const score = result.pass_percentage || 0;
-            const status = result.pass_status || 'Unknown';
-            const answered = result.answered_questions || answeredCount;
-            const unanswered = result.unanswered_questions || unansweredCount;
-
-            alert(`Quiz auto-submitted due to timeout!\n\nScore: ${score}%\nStatus: ${status}\n\nAnswered: ${answered} questions\nUnanswered: ${unanswered} questions (marked incorrect)\n\nNote: Only answered questions could earn points.`);
-
+            // Reload page after 3 seconds to allow manual submission
             setTimeout(() => {
                 window.location.reload();
-            }, 2000);
-        } else {
-            throw new Error(result.message || 'Auto-submission failed');
+            }, 3000);
         }
-
-    } catch (error) {
-        console.error('Auto-submit error:', error);
-        alert(`Auto-submit failed: ${error.message}\n\nPage will reload for manual submission.`);
-
-        setTimeout(() => {
-            window.location.reload();
-        }, 3000);
     }
-}
+
+    stop() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+            console.log('⏹️ Timer stopped');
+        }
+    }
 }
 
 // Global variables
@@ -935,14 +828,20 @@ function nextStep() {
             debugFormStructure();
         }, 500);
 
-        startQuizTimer();
+        // Start timer with longer delay to ensure everything is ready
+        setTimeout(() => {
+            console.log('📋 Step 2 is now active, starting timer...');
+            startQuizTimer();
+        }, 700);
     }
 }
 
 function prevStep() {
     if (currentStep === 2) {
-        if (quizTimer?.timerInterval) {
-            clearInterval(quizTimer.timerInterval);
+        // Stop the timer when going back
+        if (quizTimer) {
+            console.log('🛑 Stopping timer due to step navigation');
+            quizTimer.stop();
             quizTimer = null;
         }
 
@@ -961,14 +860,27 @@ function startQuizTimer() {
     const lessonId = document.getElementById('lesson_id')?.value;
     const userId = document.querySelector('input[name="user_id"]')?.value;
 
-    console.log('Starting timer - Lesson:', lessonId, 'User:', userId);
+    console.log('🚀 Starting quiz timer - Lesson:', lessonId, 'User:', userId);
 
-    if (lessonId && userId) {
-        quizTimer = new QuizTimer();
-        quizTimer.initialize(lessonId, userId);
-    } else {
-        console.log('Timer not started - missing lesson_id or user_id');
+    if (!lessonId || !userId) {
+        console.error('❌ Missing lesson_id or user_id for timer');
+        console.log('Available inputs:', {
+            lesson_id: document.getElementById('lesson_id'),
+            user_id: document.querySelector('input[name="user_id"]'),
+            all_hidden_inputs: Array.from(document.querySelectorAll('input[type="hidden"]')).map(i => ({name: i.name, value: i.value}))
+        });
+        return;
     }
+
+    // Stop any existing timer
+    if (quizTimer) {
+        console.log('🛑 Stopping existing timer');
+        quizTimer.stop();
+    }
+
+    // Create and initialize new timer
+    quizTimer = new QuizTimer();
+    quizTimer.initialize(lessonId, userId);
 }
 
 // Debug function
@@ -977,23 +889,25 @@ function debugFormStructure() {
 
     const form = document.getElementById('quiz_form');
     if (!form) {
-        console.error('Form not found!');
+        console.error('❌ Form not found!');
         return;
     }
 
-    const radioInputs = form.querySelectorAll('input[type="radio"]');
-    console.log('Radio inputs found:', radioInputs.length);
+    console.log('✅ Form found');
 
-    radioInputs.forEach(radio => {
-        console.log(`Radio: name="${radio.name}", value="${radio.value}", checked=${radio.checked}`);
+    const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
+    console.log('📋 Hidden inputs:', Array.from(hiddenInputs).map(i => ({name: i.name, value: i.value})));
+
+    const questionInputs = form.querySelectorAll('input[name^="options_"]');
+    console.log('❓ Question inputs found:', questionInputs.length);
+
+    const lessonIdInput = document.getElementById('lesson_id');
+    const userIdInput = document.querySelector('input[name="user_id"]');
+
+    console.log('🔍 Required inputs:', {
+        lesson_id: lessonIdInput ? lessonIdInput.value : 'NOT FOUND',
+        user_id: userIdInput ? userIdInput.value : 'NOT FOUND'
     });
-
-    // Test FormData
-    const testFormData = new FormData(form);
-    console.log('Current FormData:');
-    for (let [key, value] of testFormData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
 }
 
 // Enhanced radio button interaction
@@ -1012,7 +926,7 @@ function setupQuizInteractions() {
     });
 }
 
-// Manual form submission - FIXED VERSION
+// FIXED Manual form submission with session support
 function setupFormSubmission() {
     const form = document.getElementById('quiz_form');
     if (!form) return;
@@ -1020,28 +934,41 @@ function setupFormSubmission() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        console.log('=== MANUAL SUBMIT ===');
+        console.log('📝 Manual quiz submission started');
 
-        if (quizTimer?.timerInterval) {
-            clearInterval(quizTimer.timerInterval);
+        // Stop timer
+        if (quizTimer) {
+            quizTimer.stop();
         }
 
+        // Show loading
         document.getElementById('loading')?.classList.remove('hidden');
         document.getElementById('selected_quiz')?.classList.add('hidden');
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            if (!csrfToken) {
-                throw new Error('CSRF token not found');
-            }
-
             const formData = new FormData(this);
 
-            // Debug form data
-            console.log('Manual submit FormData:');
-            for (let [key, value] of formData.entries()) {
-                console.log(`${key}: ${value}`);
+            // Ensure session_id is present for manual submission
+            if (quizTimer && quizTimer.sessionId) {
+                formData.set('session_id', quizTimer.sessionId);
+                console.log('Using timer session_id:', quizTimer.sessionId);
+            } else {
+                // Generate session ID if we don't have one
+                const lessonId = document.getElementById('lesson_id')?.value;
+                const userId = document.querySelector('input[name="user_id"]')?.value;
+                const timestamp = Date.now();
+                const sessionId = `manual_${lessonId}_${userId}_${timestamp}`;
+                formData.set('session_id', sessionId);
+                console.log('Generated session_id for manual submission:', sessionId);
             }
+
+            // Debug form data
+            console.log('Submitting form with data:', {
+                session_id: formData.get('session_id'),
+                user_id: formData.get('user_id'),
+                lesson_id: formData.get('lesson_id'),
+                module_id: formData.get('module_id')
+            });
 
             // Check if we have any quiz answers
             let hasAnswers = false;
@@ -1059,45 +986,41 @@ function setupFormSubmission() {
                 return;
             }
 
-            const response = await fetch('/api/marking', {
+            const response = await fetch('/api/quiz/marking', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
                 },
                 body: formData
             });
 
+            console.log('Manual submission response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Manual submission HTTP error:', errorText);
+                throw new Error(`Server error ${response.status}`);
+            }
+
             const result = await response.json();
-            console.log('Manual submit result:', result);
-
-            if (response.status === 408) {
-                alert('Quiz time has expired. Your answers could not be submitted.');
-                return;
-            }
-
-            if (response.status === 422) {
-                console.error('Validation errors:', result);
-                alert('Please check your answers and try again.');
-                return;
-            }
+            console.log('Manual submission result:', result);
 
             if (result.success) {
-                const score = result.pass_percentage || 0;
-                const status = result.pass_status || 'Unknown';
-                alert(`Quiz submitted successfully!\n\nScore: ${score}%\nStatus: ${status}`);
+                console.log('✅ Quiz submitted successfully');
+                alert(`Quiz submitted successfully!\nScore: ${result.pass_percentage}%\nStatus: ${result.pass_status}`);
                 window.location.reload();
             } else {
                 throw new Error(result.message || 'Submission failed');
             }
-
         } catch (error) {
-            console.error('Manual submission error:', error);
-            alert(`Failed to submit quiz: ${error.message}\n\nPlease try again.`);
+            console.error('💥 Quiz submission error:', error);
+            alert('Failed to submit quiz. Please try again.');
 
+            // Re-enable form
             document.getElementById('loading')?.classList.add('hidden');
             document.getElementById('selected_quiz')?.classList.remove('hidden');
 
+            // Restart timer if it was running and there's time left
             if (quizTimer && quizTimer.remainingSeconds > 0) {
                 quizTimer.startTimer();
             }

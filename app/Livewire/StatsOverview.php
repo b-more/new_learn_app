@@ -22,21 +22,16 @@ class StatsOverview extends BaseWidget
         }
 
         $total_assigned_modules = $user->modules->count();
-        $total_attempts = AttemptAnswer::where('user_id', $user->id)->count();
 
-        if ($total_attempts > 0) {
-            $success_count = AttemptAnswer::where('user_id', $user->id)->where('auto_mark', 1)->count();
-            $total_success = number_format(($success_count / $total_attempts) * 100, 1) . "%";
-        } else {
-            $total_success = "0%";
-        }
+        // Use your existing getUserStats method with correct array keys
+        $userStats = AttemptAnswer::getUserStats($user->id);
 
         return [
             Stat::make('Assigned Modules', $total_assigned_modules)
                 ->color('success'),
-            Stat::make('Quiz Attempts', $total_attempts)
+            Stat::make('Quiz Attempts', $userStats['total_attempts']) // Fixed: was 'total_sessions'
                 ->color('info'),
-            Stat::make('Success Rate', $total_success)
+            Stat::make('Success Rate', $userStats['overall_percentage'] . '%') // Fixed: was 'success_rate'
                 ->color('success'),
             Stat::make('Completion', '100%')
                 ->color('warning'),

@@ -67,17 +67,42 @@ class Lesson extends Model
     }
 
     // Timer-related methods
+    // public function getTimerSettings()
+    // {
+    //     return [
+    //         'enabled' => $this->quiz_timer_enabled,
+    //         'duration_minutes' => $this->quiz_timer_minutes,
+    //         'duration_seconds' => $this->quiz_timer_minutes * 60,
+    //         'show_warning' => $this->show_timer_warning,
+    //         'warning_time_minutes' => $this->warning_time_minutes,
+    //         'warning_time_seconds' => $this->warning_time_minutes * 60,
+    //         'auto_submit' => $this->auto_submit_on_timeout
+    //     ];
+    // }
+
     public function getTimerSettings()
     {
+        // You can customize these settings per lesson
+        // For now, returning default settings
+
         return [
-            'enabled' => $this->quiz_timer_enabled,
-            'duration_minutes' => $this->quiz_timer_minutes,
-            'duration_seconds' => $this->quiz_timer_minutes * 60,
-            'show_warning' => $this->show_timer_warning,
-            'warning_time_minutes' => $this->warning_time_minutes,
-            'warning_time_seconds' => $this->warning_time_minutes * 60,
-            'auto_submit' => $this->auto_submit_on_timeout
+            'enabled' => true,
+            'duration_minutes' => 10, // 10 minutes default
+            'duration_seconds' => 600, // 10 * 60
+            'warning_time_seconds' => 300, // Show warning at 5 minutes remaining
+            'show_warning' => true,
+            'auto_submit' => true
         ];
+
+        // Alternative: If you have timer settings stored in database
+        // return [
+        //     'enabled' => $this->timer_enabled ?? true,
+        //     'duration_minutes' => $this->timer_duration_minutes ?? 10,
+        //     'duration_seconds' => ($this->timer_duration_minutes ?? 10) * 60,
+        //     'warning_time_seconds' => $this->timer_warning_seconds ?? 300,
+        //     'show_warning' => $this->show_timer_warning ?? true,
+        //     'auto_submit' => $this->auto_submit_on_timeout ?? true
+        // ];
     }
 
     public function hasQuizTimer()
@@ -177,6 +202,7 @@ class Lesson extends Model
         }
         return 'Unknown';
     }
+
 
     // Quiz statistics
     public function getQuizCount()

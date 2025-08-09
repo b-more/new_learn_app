@@ -15,10 +15,11 @@ class AttemptAnswer extends Model
         'module_id',
         'lesson_id',
         'quiz_id',
+        'session_id', // NEW: Added for session-based tracking
         'user_answer',
         'correct_answer',
         'auto_mark',
-        'was_answered', // NEW: Track if question was actually answered by user
+        'was_answered', // Your existing field
         'attempt_started_at',
         'attempt_completed_at',
         'attempt_status',
@@ -28,18 +29,23 @@ class AttemptAnswer extends Model
         'total_questions',
         'correct_answers',
         'score_percentage',
-        'detailed_answers'
+        'detailed_answers',
+        'session_started_at', // Your existing field
+        'session_completed_at', // Your existing field
+        'session_status' // Your existing field
     ];
 
     protected $casts = [
         'attempt_started_at' => 'datetime',
         'attempt_completed_at' => 'datetime',
         'timer_expires_at' => 'datetime',
+        'session_started_at' => 'datetime', // Added cast for consistency
+        'session_completed_at' => 'datetime', // Added cast for consistency
         'timer_settings' => 'array',
         'detailed_answers' => 'array',
         'score_percentage' => 'decimal:2',
         'auto_mark' => 'boolean',
-        'was_answered' => 'boolean', // NEW: Cast for was_answered field
+        'was_answered' => 'boolean',
         'user_id' => 'integer',
         'module_id' => 'integer',
         'lesson_id' => 'integer',
@@ -49,7 +55,7 @@ class AttemptAnswer extends Model
         'time_taken_seconds' => 'integer'
     ];
 
-    // Relationships
+    // Your existing relationships
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -70,7 +76,7 @@ class AttemptAnswer extends Model
         return $this->belongsTo(Quizz::class);
     }
 
-    // Your existing helper methods (keeping them as-is)
+    // ALL YOUR EXISTING HELPER METHODS (preserved exactly as-is)
     public function isPassed()
     {
         return $this->score_percentage >= 70;
@@ -109,30 +115,21 @@ class AttemptAnswer extends Model
         };
     }
 
-    /**
-     * Check if the quiz attempt has expired
-     */
     public function hasExpired()
     {
         return $this->timer_expires_at && now()->gt($this->timer_expires_at);
     }
 
-    /**
-     * Get remaining time in seconds
-     */
     public function getRemainingTimeSeconds()
     {
         if (!$this->timer_expires_at) {
-            return null; // No timer set
+            return null;
         }
 
         $remaining = $this->timer_expires_at->diffInSeconds(now(), false);
         return max(0, $remaining);
     }
 
-    /**
-     * Get formatted remaining time
-     */
     public function getFormattedRemainingTime()
     {
         $seconds = $this->getRemainingTimeSeconds();
@@ -151,25 +148,16 @@ class AttemptAnswer extends Model
         return sprintf('%02d:%02d', $minutes, $remainingSeconds);
     }
 
-    /**
-     * Check if attempt is in progress
-     */
     public function isInProgress()
     {
         return $this->attempt_status === 'in_progress' && !$this->hasExpired();
     }
 
-    /**
-     * Check if attempt is completed
-     */
     public function isCompleted()
     {
         return in_array($this->attempt_status, ['completed', 'expired', 'timed_out']);
     }
 
-    /**
-     * Get pass status
-     */
     public function getPassStatus()
     {
         if (!$this->isCompleted() || $this->score_percentage === null) {
@@ -179,35 +167,21 @@ class AttemptAnswer extends Model
         return $this->score_percentage >= 70 ? 'Passed' : 'Failed';
     }
 
-    // NEW METHODS - Building on your existing structure
-
-    /**
-     * Check if this was a timeout submission (using your existing status values)
-     */
     public function isTimeoutSubmission()
     {
         return in_array($this->attempt_status, ['timed_out', 'expired']);
     }
 
-    /**
-     * Check if this was a manual submission
-     */
     public function isManualSubmission()
     {
         return $this->attempt_status === 'completed' && !$this->isTimeoutSubmission();
     }
 
-    /**
-     * Check if question was actually answered by user
-     */
     public function wasAnsweredByUser()
     {
         return $this->was_answered === true;
     }
 
-    /**
-     * Get submission type label (enhanced to work with your status values)
-     */
     public function getSubmissionTypeLabel()
     {
         return match($this->attempt_status) {
@@ -220,9 +194,6 @@ class AttemptAnswer extends Model
         };
     }
 
-    /**
-     * Get enhanced attempt summary (building on your existing getSummary)
-     */
     public function getEnhancedSummary()
     {
         $baseSummary = $this->getSummary();
@@ -233,12 +204,11 @@ class AttemptAnswer extends Model
             'is_timeout_submission' => $this->isTimeoutSubmission(),
             'is_manual_submission' => $this->isManualSubmission(),
             'badge_color' => $this->getStatusBadgeColor(),
+            'session_id' => $this->session_id, // NEW: Added session info
+            'session_stats' => $this->getSessionStats(), // NEW: Session statistics
         ]);
     }
 
-    /**
-     * Get attempt summary (your existing method - keeping as-is)
-     */
     public function getSummary()
     {
         return [
@@ -257,67 +227,44 @@ class AttemptAnswer extends Model
         ];
     }
 
-    // NEW SCOPES - Building on your existing ones
-
-    /**
-     * Scope for answered questions only
-     */
+    // ALL YOUR EXISTING SCOPES (preserved exactly as-is)
     public function scopeAnswered($query)
     {
         return $query->where('was_answered', true);
     }
 
-    /**
-     * Scope for unanswered questions only
-     */
     public function scopeUnanswered($query)
     {
         return $query->where('was_answered', false);
     }
 
-    /**
-     * Scope for timeout submissions (using your status values)
-     */
     public function scopeTimeoutSubmissions($query)
     {
         return $query->whereIn('attempt_status', ['timed_out', 'expired']);
     }
 
-    /**
-     * Scope for manual submissions (using your status values)
-     */
     public function scopeManualSubmissions($query)
     {
         return $query->where('attempt_status', 'completed')
                     ->whereNotIn('attempt_status', ['timed_out', 'expired']);
     }
 
-    /**
-     * Scope for recent attempts (last 7 days)
-     */
     public function scopeRecent($query, $days = 7)
     {
         return $query->where('created_at', '>=', now()->subDays($days));
     }
 
-    /**
-     * Scope for passed attempts
-     */
     public function scopePassed($query)
     {
         return $query->where('score_percentage', '>=', 70);
     }
 
-    /**
-     * Scope for failed attempts
-     */
     public function scopeFailed($query)
     {
         return $query->where('score_percentage', '<', 70)
                     ->whereNotNull('score_percentage');
     }
 
-    // Your existing scopes (keeping them as-is)
     public function scopeInProgress($query)
     {
         return $query->where('attempt_status', 'in_progress')
@@ -338,9 +285,28 @@ class AttemptAnswer extends Model
         return $query->where('attempt_status', 'completed');
     }
 
-    /**
-     * Auto-expire attempts that have timed out (your existing method)
-     */
+    // NEW: Session-based scopes
+    public function scopeBySession($query, $sessionId)
+    {
+        return $query->where('session_id', $sessionId);
+    }
+
+    public function scopeActiveSessions($query)
+    {
+        return $query->whereIn('session_status', ['in_progress', null]);
+    }
+
+    public function scopeCompletedSessions($query)
+    {
+        return $query->where('session_status', 'completed');
+    }
+
+    public function scopeSessionsWithoutId($query)
+    {
+        return $query->whereNull('session_id');
+    }
+
+    // Your existing static method
     public static function expireTimedOutAttempts()
     {
         return self::expired()->update([
@@ -349,11 +315,7 @@ class AttemptAnswer extends Model
         ]);
     }
 
-    // NEW STATIC METHODS - Analytics helpers
-
-    /**
-     * Get user performance statistics
-     */
+    // YOUR EXISTING getUserStats METHOD (preserved exactly as-is)
     public static function getUserStats($userId)
     {
         $attempts = self::where('user_id', $userId)->get();
@@ -373,11 +335,230 @@ class AttemptAnswer extends Model
         ];
     }
 
-    /**
-     * Get session grouping key (for grouping attempts by quiz session)
-     */
+    // Your existing method
     public function getSessionGroupKey()
     {
         return $this->lesson_id . '_' . $this->created_at->format('Y-m-d_H-i');
+    }
+
+    // NEW SESSION-BASED METHODS (added for the session system)
+
+    /**
+     * Get user session count (for quick counting in views)
+     */
+    public static function getUserSessionCount($userId)
+    {
+        return self::where('user_id', $userId)
+            ->whereNotNull('session_id')
+            ->distinct('session_id')
+            ->count();
+    }
+
+    /**
+     * Get user passed sessions count
+     */
+    public static function getUserPassedSessionsCount($userId)
+    {
+        $sessionIds = self::where('user_id', $userId)
+            ->whereNotNull('session_id')
+            ->distinct('session_id')
+            ->pluck('session_id');
+
+        $passedCount = 0;
+        foreach ($sessionIds as $sessionId) {
+            $sessionStats = self::getSessionStatsStatic($sessionId);
+            if ($sessionStats && $sessionStats['passed']) {
+                $passedCount++;
+            }
+        }
+
+        return $passedCount;
+    }
+
+    /**
+     * Get user failed sessions count
+     */
+    public static function getUserFailedSessionsCount($userId)
+    {
+        $sessionIds = self::where('user_id', $userId)
+            ->whereNotNull('session_id')
+            ->distinct('session_id')
+            ->pluck('session_id');
+
+        $failedCount = 0;
+        foreach ($sessionIds as $sessionId) {
+            $sessionStats = self::getSessionStatsStatic($sessionId);
+            if ($sessionStats && !$sessionStats['passed']) {
+                $failedCount++;
+            }
+        }
+
+        return $failedCount;
+    }
+
+    /**
+     * Get session statistics for this attempt's session
+     */
+    public function getSessionStats()
+    {
+        if (!$this->session_id) {
+            return null;
+        }
+
+        return self::getSessionStatsStatic($this->session_id);
+    }
+
+    /**
+     * Get session statistics (static method)
+     */
+    public static function getSessionStatsStatic($sessionId)
+    {
+        $attempts = self::where('session_id', $sessionId)->get();
+
+        if ($attempts->isEmpty()) {
+            return null;
+        }
+
+        $totalQuestions = $attempts->count();
+        $correctAnswers = $attempts->where('auto_mark', true)->count();
+        $answeredQuestions = $attempts->where('was_answered', true)->count();
+        $scorePercentage = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
+        $passed = $scorePercentage >= 70;
+
+        $firstAttempt = $attempts->sortBy('created_at')->first();
+        $lastAttempt = $attempts->sortBy('created_at')->last();
+
+        return [
+            'session_id' => $sessionId,
+            'user_id' => $firstAttempt->user_id,
+            'lesson_id' => $firstAttempt->lesson_id,
+            'module_id' => $firstAttempt->module_id,
+            'total_questions' => $totalQuestions,
+            'correct_answers' => $correctAnswers,
+            'answered_questions' => $answeredQuestions,
+            'unanswered_questions' => $totalQuestions - $answeredQuestions,
+            'score_percentage' => $scorePercentage,
+            'passed' => $passed,
+            'session_started_at' => $firstAttempt->session_started_at ?? $firstAttempt->created_at,
+            'session_completed_at' => $firstAttempt->session_completed_at,
+            'session_status' => $firstAttempt->session_status ?? 'in_progress',
+            'duration_seconds' => $firstAttempt->session_started_at && $firstAttempt->session_completed_at
+                ? $firstAttempt->session_started_at->diffInSeconds($firstAttempt->session_completed_at)
+                : null
+        ];
+    }
+
+    /**
+     * Get system-wide session statistics
+     */
+    public static function getSystemWideSessionStats()
+    {
+        $totalSessions = self::whereNotNull('session_id')
+            ->distinct('session_id')
+            ->count();
+
+        $allSessionIds = self::whereNotNull('session_id')
+            ->distinct('session_id')
+            ->pluck('session_id');
+
+        $passedSessions = 0;
+        $failedSessions = 0;
+        $completedSessions = 0;
+        $abandonedSessions = 0;
+        $timedOutSessions = 0;
+
+        foreach ($allSessionIds as $sessionId) {
+            $stats = self::getSessionStatsStatic($sessionId);
+            if ($stats) {
+                if ($stats['passed']) $passedSessions++;
+                else $failedSessions++;
+
+                switch ($stats['session_status']) {
+                    case 'completed':
+                        $completedSessions++;
+                        break;
+                    case 'abandoned':
+                        $abandonedSessions++;
+                        break;
+                    case 'timed_out':
+                        $timedOutSessions++;
+                        break;
+                }
+            }
+        }
+
+        return [
+            'total_sessions' => $totalSessions,
+            'passed_sessions' => $passedSessions,
+            'failed_sessions' => $failedSessions,
+            'completed_sessions' => $completedSessions,
+            'abandoned_sessions' => $abandonedSessions,
+            'timed_out_sessions' => $timedOutSessions,
+            'raw_attempts_count' => self::count()
+        ];
+    }
+
+    /**
+     * Check if this attempt belongs to a completed session
+     */
+    public function isSessionCompleted()
+    {
+        return in_array($this->session_status, ['completed', 'abandoned', 'timed_out']);
+    }
+
+    /**
+     * Check if this attempt belongs to a passed session
+     */
+    public function isSessionPassed()
+    {
+        $stats = $this->getSessionStats();
+        return $stats ? $stats['passed'] : false;
+    }
+
+    /**
+     * Check if a session exists and is active
+     */
+    public static function isSessionActive($sessionId)
+    {
+        $session = self::where('session_id', $sessionId)
+            ->whereIn('session_status', ['in_progress', null])
+            ->first();
+
+        return $session !== null;
+    }
+
+    /**
+     * Get active session for user and lesson
+     */
+    public static function getActiveSession($userId, $lessonId)
+    {
+        $activeAttempt = self::where('user_id', $userId)
+            ->where('lesson_id', $lessonId)
+            ->whereIn('session_status', ['in_progress', null])
+            ->whereNotNull('session_id')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return $activeAttempt ? $activeAttempt->session_id : null;
+    }
+
+    /**
+     * Boot method to handle model events
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Automatically set session metadata when creating attempts
+        static::creating(function ($attempt) {
+            // If session_id is provided but session metadata is missing, fill it
+            if ($attempt->session_id && !$attempt->session_started_at) {
+                $existingSession = self::where('session_id', $attempt->session_id)->first();
+                if ($existingSession) {
+                    $attempt->session_started_at = $existingSession->session_started_at;
+                    $attempt->session_status = $existingSession->session_status;
+                }
+            }
+        });
     }
 }

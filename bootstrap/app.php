@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
         //     \App\Http\Middleware\TrackUserActivity::class,
         // ]);
     })
+    ->withProviders([
+        // Register your custom service providers here
+        \App\Providers\ActivityTrackingServiceProvider::class,
+    ])
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

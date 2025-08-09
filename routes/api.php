@@ -26,8 +26,16 @@ Route::post('/quiz', [ModuleController::class, 'quiz']);
 Route::post('/marking', [ModuleController::class, 'marking']);
 Route::post('/mark', [ModuleController::class, 'marking']);
 Route::post('/lesson', [ModuleController::class, 'getLesson']);
+
+// ADD THIS MISSING ROUTE - This is what your JavaScript is calling
+Route::post('/module/lessons', [ModuleController::class, 'getModuleLessons']);
+
 Route::get('/quiz-history', [ModuleController::class, 'getQuizHistory']);
 Route::post('/track-document-download', [ModuleController::class, 'trackDocumentDownload']);
+Route::post('/quiz/start-session', [ModuleController::class, 'startQuizSession']);
+Route::post('/quiz/marking', [ModuleController::class, 'marking']); // Updated existing
+Route::post('/quiz/abandon-session', [ModuleController::class, 'abandonQuizSession']);
+Route::get('/quiz/session-status', [ModuleController::class, 'getSessionStatus']);
 
 // New quiz timer routes
 Route::post('/start-quiz-attempt', [ModuleController::class, 'startQuizAttempt']);
@@ -60,5 +68,3 @@ Route::middleware(['auth:sanctum'])->prefix('activity')->group(function () {
         ]);
     });
 });
-
-

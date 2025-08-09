@@ -1,3 +1,11 @@
+{{-- resources/views/tables/columns/fails.blade.php --}}
+@php
+    use App\Models\AttemptAnswer;
+
+    $userId = $getRecord()->user_id;
+    $failedCount = AttemptAnswer::getUserFailedSessionsCount($userId);
+@endphp
+
 <div class="text-danger-600 text-center">
-    {{ \App\Models\AttemptAnswer::where('user_id', auth()->user()->id)->where('auto_mark',0)->count() }}
+    {{ $failedCount }}
 </div>

@@ -7,8 +7,9 @@
         <div class="flex flex-row items-start w-full h-screen">
 
             <div id="modules" class="w-2/3 h-full px-6 overflow-y-scroll">
-                @foreach(auth()->user()->modules as $index => $module)
-                    <button id="{{ $module->id }}" class="flex flex-row items-center w-full px-6 py-3 mb-4 space-x-3 bg-green-800 rounded-lg module-button bg-opacity-5"
+                @forelse(auth()->user()->modules as $index => $module)
+                    <button id="{{ $module->id }}"
+                            class="flex flex-row items-center w-full px-6 py-3 mb-4 space-x-3 bg-green-800 rounded-lg module-button bg-opacity-5 hover:bg-opacity-10 transition-all duration-200"
                             data-title="{{ $module->title }}"
                             data-image-url="{{ $module->icon }}"
                             data-description="{{ $module->description }}">
@@ -16,111 +17,284 @@
                             {{ $index+1 }}
                         </div>
                         <div class="w-6/8">
-                            <div class="text-sm text-start">{{ $module->title }}</div>
+                            <div class="text-sm text-start font-semibold">{{ $module->title }}</div>
                             <div class="text-xs text-gray-500 text-start">{{ $module->description }}</div>
                         </div>
-
                     </button>
-                @endforeach
+                @empty
+                    <div class="text-center py-8">
+                        <div class="text-gray-500 text-lg">No modules assigned yet</div>
+                        <div class="text-gray-400 text-sm">Contact your administrator to get modules assigned</div>
+                    </div>
+                @endforelse
             </div>
+
             <div class="w-1/3 h-full p-6 overflow-y-scroll bg-green-800 rounded bg-opacity-5">
                 <div id="content">
-                    <div>
-                        <a id="lessons_link">
-                            <img id="thumbnail" style="max-width: 100%; height: auto;">
-                        </a>
+                    <!-- Default state -->
+                    <div id="default-state" class="text-center py-8">
+                        <div class="text-gray-500 text-lg">Select a Module</div>
+                        <div class="text-gray-400 text-sm">Click on a module to see its details</div>
                     </div>
-                    <div id="title" class="mt-4 text-sm font-semibold">
-                    </div>
-                    <div id="description" class="mt-2 text-xs text-gray-600">
-                    </div>
-                    <div id="loading" class="hidden">
-                        <div class="flex flex-col items-center justify-center">
-                            <dotlottie-player src="{{ asset('anims/shimmer.json') }}" background="transparent" speed="1" class="w-full h-[300px]" loop autoplay></dotlottie-player>
+
+                    <!-- Module content -->
+                    <div id="module-content" class="hidden">
+                        <div>
+                            <a id="lessons_link" href="#">
+                                <img id="thumbnail"
+                                     src=""
+                                     alt="Module Image"
+                                     class="w-full h-48 object-cover rounded-lg"
+                                     style="max-width: 100%; height: auto;"
+                                     onerror="this.src='/images/default-module.png'">
+                            </a>
                         </div>
-                    </div>
-                    <div id="lessons_details" class="hidden mt-6">
-                        <div class="flex flex-row items-center justify-between mb-4">
-                            <div class="text-sm font-bold">Total Lessons</div>
-                            <div id="total_lessons" class="font-extrabold text-md"></div>
+                        <div id="title" class="mt-4 text-lg font-semibold text-gray-800"></div>
+                        <div id="description" class="mt-2 text-sm text-gray-600"></div>
+
+                        <!-- Loading state -->
+                        <div id="loading" class="hidden py-8">
+                            <div class="flex flex-col items-center justify-center">
+                                <dotlottie-player src="{{ asset('anims/shimmer.json') }}"
+                                                background="transparent"
+                                                speed="1"
+                                                class="w-full h-[300px]"
+                                                loop autoplay>
+                                </dotlottie-player>
+                                <div class="text-gray-500 text-sm mt-2">Loading module details...</div>
+                            </div>
                         </div>
-                        <a id="lesson_btn" class="flex flex-row items-center justify-end px-6 py-2 space-x-3 text-sm font-semibold text-white bg-green-800 rounded-full hover:bg-green-700">
-                            <div>Proceed</div>
-                            <div>></div>
-                        </a>
+
+                        <!-- Error state -->
+                        <div id="error-state" class="hidden py-8 text-center">
+                            <div class="text-red-500 text-lg mb-2">Error Loading Module</div>
+                            <div id="error-message" class="text-red-400 text-sm mb-4">Failed to load module details</div>
+                            <button id="retry-button"
+                                    class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm">
+                                Try Again
+                            </button>
+                        </div>
+
+                        <!-- Module details -->
+                        <div id="lessons_details" class="hidden mt-6">
+                            <div class="bg-white rounded-lg p-4 mb-4 shadow-sm">
+                                <div class="flex flex-row items-center justify-between mb-2">
+                                    <div class="text-sm font-bold text-gray-700">Total Lessons</div>
+                                    <div id="total_lessons" class="font-extrabold text-lg text-green-600"></div>
+                                </div>
+
+                                <!-- Progress bar (if available) -->
+                                <div id="progress-container" class="hidden mt-3">
+                                    <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
+                                        <span>Progress</span>
+                                        <span id="progress-percentage">0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div id="progress-bar" class="bg-green-600 h-2 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        <span id="completed-lessons">0</span> of <span id="total-lessons-progress">0</span> lessons completed
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a id="lesson_btn"
+                               href="#"
+                               class="flex flex-row items-center justify-center px-6 py-3 space-x-3 text-sm font-semibold text-white bg-green-800 rounded-lg hover:bg-green-700 transition-colors">
+                                <span>Start Learning</span>
+                                <span>→</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const buttons = document.querySelectorAll('.module-button');
+            const defaultState = document.getElementById('default-state');
+            const moduleContent = document.getElementById('module-content');
+            const loadingState = document.getElementById('loading');
+            const errorState = document.getElementById('error-state');
+            const lessonsDetails = document.getElementById('lessons_details');
+            const errorMessage = document.getElementById('error-message');
+            const retryButton = document.getElementById('retry-button');
 
-            document.querySelectorAll('.module-button').forEach(button => {
+            let currentModuleId = null;
+
+            // Function to show specific state
+            function showState(state) {
+                [defaultState, loadingState, errorState, lessonsDetails].forEach(el => {
+                    if (el) el.classList.add('hidden');
+                });
+
+                if (state) {
+                    state.classList.remove('hidden');
+                }
+
+                if (state !== defaultState) {
+                    moduleContent.classList.remove('hidden');
+                } else {
+                    moduleContent.classList.add('hidden');
+                }
+            }
+
+            // Function to handle module selection
+            function selectModule(button) {
+                const moduleId = button.id;
+                currentModuleId = moduleId;
+
+                // Update button states
+                buttons.forEach(btn => {
+                    btn.classList.remove('border-r-8', 'border-green-800', 'border-opacity-80');
+                });
+                button.classList.add('border-r-8', 'border-green-800', 'border-opacity-80');
+
+                // Get module data
+                const title = button.getAttribute('data-title');
+                const imageUrl = button.getAttribute('data-image-url');
+                const description = button.getAttribute('data-description');
+
+                // Update basic info immediately
+                document.getElementById('title').textContent = title;
+                document.getElementById('description').textContent = description;
+                document.getElementById('lessons_link').href = '/course/assigned-lessons?b=' + moduleId;
+                document.getElementById('lesson_btn').href = '/course/assigned-lessons?b=' + moduleId;
+
+                // Set image with fallback
+                const thumbnail = document.getElementById('thumbnail');
+                if (imageUrl) {
+                    thumbnail.src = '/storage/' + imageUrl;
+                } else {
+                    thumbnail.src = '/images/default-module.png';
+                }
+
+                // Show loading state
+                showState(loadingState);
+
+                // Fetch module details
+                fetchModuleDetails(moduleId);
+            }
+
+            // Function to fetch module details from API
+            function fetchModuleDetails(moduleId) {
+                const apiUrl = '/api/module/lessons';
+                const postData = { module_id: moduleId };
+
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify(postData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        updateModuleDetails(data);
+                        showState(lessonsDetails);
+                    } else {
+                        throw new Error(data.message || 'Failed to load module details');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading module details:', error);
+                    errorMessage.textContent = error.message || 'Failed to load module details. Please try again.';
+                    showState(errorState);
+                });
+            }
+
+            // Function to update module details
+            function updateModuleDetails(data) {
+                // Update lessons count
+                document.getElementById('total_lessons').textContent = data.total_lessons || 0;
+
+                // Update progress if available
+                const progressContainer = document.getElementById('progress-container');
+                if (data.progress && data.progress.overall_progress !== undefined) {
+                    const progress = data.progress.overall_progress;
+                    const completedLessons = data.progress.completed_lessons || 0;
+                    const totalLessons = data.total_lessons || 0;
+
+                    document.getElementById('progress-percentage').textContent = Math.round(progress) + '%';
+                    document.getElementById('progress-bar').style.width = progress + '%';
+                    document.getElementById('completed-lessons').textContent = completedLessons;
+                    document.getElementById('total-lessons-progress').textContent = totalLessons;
+
+                    progressContainer.classList.remove('hidden');
+                } else {
+                    progressContainer.classList.add('hidden');
+                }
+            }
+
+            // Add click listeners to module buttons
+            buttons.forEach(button => {
                 button.addEventListener('click', function() {
-                    // Remove the class from all buttons
-                    buttons.forEach(btn => btn.classList.remove('border-r-8', 'border-green-800'));
-
-                    // Add the class to the clicked button
-                    this.classList.add('border-r-8', 'border-green-800','border-opacity-80');
-
-                    const buttonId = this.id;
-                    const buttonTitle = this.getAttribute('data-title');
-                    const buttonImageUrl = this.getAttribute('data-image-url');
-                    const buttonDescription = this.getAttribute('data-description');
-                    document.getElementById('loading').classList.remove("hidden");
-
-                    document.getElementById('thumbnail').innerHTML = "";
-                    document.getElementById('title').innerText = `${buttonTitle}`;
-                    document.getElementById('thumbnail').src = `/storage/${buttonImageUrl}`;
-                    document.getElementById('lessons_link').href = '/course/assigned-lessons?b='+`${buttonId}`;
-                    document.getElementById('description').innerText = `${buttonDescription}`;
-
-                    //code to query module summaries
-                    const apiUrl = '/api/module/lessons';
-
-                    const postId = {
-                        module_id: buttonId
-                    };
-
-                    fetch(apiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(postId)
-                    }).then(response => {
-                        document.getElementById('loading').classList.add("hidden");
-
-                        if (response.status === 200) {
-                            // Parse the JSON response
-                            return response.json();
-                        } else if (response.status === 400) {
-                            // Handle client error (status code 400)
-                            throw new Error('Bad request');
-                        } else {
-                            // Handle other status codes
-                            throw new Error('Unexpected error');
-                        }
-                    }).then(data => {
-                        if (data.success) {
-                            // Handle success (status code 200 and success flag is true)
-                            document.getElementById('lessons_details').classList.remove("hidden");
-                            document.getElementById('total_lessons').innerText = data.total_lessons;
-                            document.getElementById('lesson_btn').href = '/course/assigned-lessons?b='+`${buttonId}`;
-                        } else {
-                            throw new Error('Response success flag is false');
-                        }
-                    }).catch(error => {
-                        console.error('Error:', error);
-                    });
-
-
+                    selectModule(this);
                 });
             });
+
+            // Retry button functionality
+            if (retryButton) {
+                retryButton.addEventListener('click', function() {
+                    if (currentModuleId) {
+                        const currentButton = document.getElementById(currentModuleId);
+                        if (currentButton) {
+                            selectModule(currentButton);
+                        }
+                    }
+                });
+            }
+
+            // Auto-select first module if available
+            if (buttons.length > 0) {
+                selectModule(buttons[0]);
+            } else {
+                showState(defaultState);
+            }
         });
     </script>
 
+    <style>
+        /* Custom scrollbar styles */
+        #modules::-webkit-scrollbar,
+        .overflow-y-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #modules::-webkit-scrollbar-track,
+        .overflow-y-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        #modules::-webkit-scrollbar-thumb,
+        .overflow-y-scroll::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        #modules::-webkit-scrollbar-thumb:hover,
+        .overflow-y-scroll::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Smooth transitions */
+        .module-button {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .module-button:hover {
+            transform: translateX(2px);
+        }
+    </style>
 </x-filament-panels::page>
