@@ -10,6 +10,8 @@ class AttemptAnswer extends Model
 {
     use HasFactory;
 
+    protected $table = 'attempt_answers';
+
     protected $fillable = [
         'user_id',
         'module_id',
@@ -73,7 +75,7 @@ class AttemptAnswer extends Model
 
     public function quiz()
     {
-        return $this->belongsTo(Quizz::class);
+        return $this->belongsTo(Quizz::class, 'quiz_id');
     }
 
     // ALL YOUR EXISTING HELPER METHODS (preserved exactly as-is)
@@ -422,29 +424,20 @@ class AttemptAnswer extends Model
         $totalQuestions = $attempts->count();
         $correctAnswers = $attempts->where('auto_mark', true)->count();
         $answeredQuestions = $attempts->where('was_answered', true)->count();
-        $scorePercentage = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
-        $passed = $scorePercentage >= 70;
-
-        $firstAttempt = $attempts->sortBy('created_at')->first();
-        $lastAttempt = $attempts->sortBy('created_at')->last();
+        $scorePercentage = $totalQuestions > 0
+            ? round(($correctAnswers / $totalQuestions) * 100, 2)
+            : 0;
 
         return [
             'session_id' => $sessionId,
-            'user_id' => $firstAttempt->user_id,
-            'lesson_id' => $firstAttempt->lesson_id,
-            'module_id' => $firstAttempt->module_id,
             'total_questions' => $totalQuestions,
             'correct_answers' => $correctAnswers,
             'answered_questions' => $answeredQuestions,
-            'unanswered_questions' => $totalQuestions - $answeredQuestions,
             'score_percentage' => $scorePercentage,
-            'passed' => $passed,
-            'session_started_at' => $firstAttempt->session_started_at ?? $firstAttempt->created_at,
-            'session_completed_at' => $firstAttempt->session_completed_at,
-            'session_status' => $firstAttempt->session_status ?? 'in_progress',
-            'duration_seconds' => $firstAttempt->session_started_at && $firstAttempt->session_completed_at
-                ? $firstAttempt->session_started_at->diffInSeconds($firstAttempt->session_completed_at)
-                : null
+            'passed' => $scorePercentage >= 70,
+            'session_status' => $attempts->first()->session_status ?? 'unknown',
+            'started_at' => $attempts->min('session_started_at'),
+            'completed_at' => $attempts->max('session_completed_at')
         ];
     }
 
@@ -520,11 +513,9 @@ class AttemptAnswer extends Model
      */
     public static function isSessionActive($sessionId)
     {
-        $session = self::where('session_id', $sessionId)
-            ->whereIn('session_status', ['in_progress', null])
-            ->first();
-
-        return $session !== null;
+        return self::where('session_id', $sessionId)
+            ->whereIn('session_status', ['in_progress', 'started', 'completed'])
+            ->exists();
     }
 
     /**
@@ -532,14 +523,14 @@ class AttemptAnswer extends Model
      */
     public static function getActiveSession($userId, $lessonId)
     {
-        $activeAttempt = self::where('user_id', $userId)
+        $activeSession = self::where('user_id', $userId)
             ->where('lesson_id', $lessonId)
-            ->whereIn('session_status', ['in_progress', null])
+            ->whereIn('session_status', ['in_progress', 'started'])
             ->whereNotNull('session_id')
             ->orderBy('created_at', 'desc')
             ->first();
 
-        return $activeAttempt ? $activeAttempt->session_id : null;
+        return $activeSession ? $activeSession->session_id : null;
     }
 
     /**

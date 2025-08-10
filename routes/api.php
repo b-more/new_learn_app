@@ -9,40 +9,39 @@ use App\Http\Controllers\ModuleController;
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Existing Module Controller routes
-Route::post('/module', [ModuleController::class, 'module']);
-Route::post('/quiz', [ModuleController::class, 'quiz']);
-Route::post('/marking', [ModuleController::class, 'marking']);
-Route::post('/mark', [ModuleController::class, 'marking']);
-Route::post('/lesson', [ModuleController::class, 'getLesson']);
+// Use web middleware for Filament authentication and CSRF
+Route::middleware(['web'])->group(function () {
 
-// ADD THIS MISSING ROUTE - This is what your JavaScript is calling
-Route::post('/module/lessons', [ModuleController::class, 'getModuleLessons']);
+    // Core quiz routes
+    Route::post('/quiz/start-session', [ModuleController::class, 'startQuizSession']);
+    Route::post('/quiz/marking', [ModuleController::class, 'marking']);
+    Route::post('/quiz/abandon-session', [ModuleController::class, 'abandonQuizSession']);
+    Route::get('/quiz/session-status', [ModuleController::class, 'getSessionStatus']);
 
-Route::get('/quiz-history', [ModuleController::class, 'getQuizHistory']);
-Route::post('/track-document-download', [ModuleController::class, 'trackDocumentDownload']);
-Route::post('/quiz/start-session', [ModuleController::class, 'startQuizSession']);
-Route::post('/quiz/marking', [ModuleController::class, 'marking']); // Updated existing
-Route::post('/quiz/abandon-session', [ModuleController::class, 'abandonQuizSession']);
-Route::get('/quiz/session-status', [ModuleController::class, 'getSessionStatus']);
+    // Existing routes
+    Route::post('/module', [ModuleController::class, 'module']);
+    Route::post('/quiz', [ModuleController::class, 'quiz']);
+    Route::post('/marking', [ModuleController::class, 'marking']);
+    Route::post('/mark', [ModuleController::class, 'marking']);
+    Route::post('/lesson', [ModuleController::class, 'getLesson']);
+    Route::post('/module/lessons', [ModuleController::class, 'getModuleLessons']);
 
-// New quiz timer routes
-Route::post('/start-quiz-attempt', [ModuleController::class, 'startQuizAttempt']);
-Route::post('/validate-quiz-timer', [ModuleController::class, 'validateQuizTimer']);
-Route::get('/quiz-timer-status/{attemptId}', [ModuleController::class, 'getQuizTimerStatus']);
+    Route::get('/quiz-history', [ModuleController::class, 'getQuizHistory']);
+    Route::post('/track-document-download', [ModuleController::class, 'trackDocumentDownload']);
 
-// Activity tracking routes (can be used without authentication for frontend tracking)
+    // Timer routes
+    Route::post('/start-quiz-attempt', [ModuleController::class, 'startQuizAttempt']);
+    Route::post('/validate-quiz-timer', [ModuleController::class, 'validateQuizTimer']);
+    Route::get('/quiz-timer-status/{attemptId}', [ModuleController::class, 'getQuizTimerStatus']);
+});
+
+// Activity tracking routes
 Route::prefix('activity')->group(function () {
     Route::post('/track', [ActivityTrackingController::class, 'track']);
     Route::get('/user-activity', [ActivityTrackingController::class, 'getUserActivity']);
@@ -50,7 +49,7 @@ Route::prefix('activity')->group(function () {
     Route::post('/assign-module', [ActivityTrackingController::class, 'assignModule']);
 });
 
-// Protected activity tracking routes (require authentication)
+// Protected activity routes
 Route::middleware(['auth:sanctum'])->prefix('activity')->group(function () {
     Route::get('/my-progress', function (Request $request) {
         $activityService = app(\App\Services\ActivityTrackingService::class);

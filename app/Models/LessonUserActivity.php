@@ -23,7 +23,8 @@ class LessonUserActivity extends Model
         'video_progress_percentage' => 'decimal:2',
         'video_completed' => 'boolean',
         'document_downloads' => 'array',
-        'lesson_completed' => 'boolean'
+        'lesson_completed' => 'boolean',
+        'time_spent_seconds' => 'integer'
     ];
 
     public function user()

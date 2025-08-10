@@ -492,7 +492,7 @@
 </div>
 
 <script>
-// FIXED Timer Management Class with Session Support
+// Fixed Timer Management Class
 class QuizTimer {
     constructor() {
         this.timerInterval = null;
@@ -501,7 +501,7 @@ class QuizTimer {
         this.warningShown = false;
         this.settings = {};
         this.attemptId = null;
-        this.sessionId = null; // Add session ID storage
+        this.sessionId = null;
     }
 
     async initialize(lessonId, userId) {
@@ -511,19 +511,21 @@ class QuizTimer {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             if (!csrfToken) {
                 console.error('❌ CSRF token not found');
+                this.showError('Security token missing. Please refresh the page.');
                 return;
             }
 
             console.log('📡 Starting quiz session...');
 
-            // Use session-based API instead
             const response = await fetch('/api/quiz/start-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     lesson_id: lessonId,
                     user_id: userId,
@@ -544,11 +546,10 @@ class QuizTimer {
             const data = await response.json();
             console.log('✅ Session API Response:', data);
 
-            if (data.success) {
-                this.sessionId = data.session_id; // Store session ID
+            if (data.success && data.session_id) {
+                this.sessionId = data.session_id;
                 this.settings = data.timer_settings || { enabled: true, duration_minutes: 10 };
 
-                // Add session_id to the form
                 this.addSessionIdToForm(this.sessionId);
 
                 if (this.settings.enabled && data.timer_expires_at) {
@@ -585,19 +586,32 @@ class QuizTimer {
     }
 
     addSessionIdToForm(sessionId) {
-        // Add session_id as hidden input to the form
         const form = document.getElementById('quiz_form');
         if (form && sessionId) {
-            let sessionInput = document.getElementById('session_id_input');
-            if (!sessionInput) {
-                sessionInput = document.createElement('input');
-                sessionInput.type = 'hidden';
-                sessionInput.name = 'session_id';
-                sessionInput.id = 'session_id_input';
-                form.appendChild(sessionInput);
+            // Remove existing session_id input if any
+            const existingInput = document.getElementById('session_id_input');
+            if (existingInput) {
+                existingInput.remove();
             }
+
+            // Create new session_id input
+            const sessionInput = document.createElement('input');
+            sessionInput.type = 'hidden';
+            sessionInput.name = 'session_id';
+            sessionInput.id = 'session_id_input';
             sessionInput.value = sessionId;
+            form.appendChild(sessionInput);
+
             console.log('✅ Added session_id to form:', sessionId);
+
+            // Verify it was added correctly
+            const verification = document.getElementById('session_id_input');
+            console.log('🔍 Verification - session_id in form:', verification ? verification.value : 'NOT FOUND');
+        } else {
+            console.error('❌ Cannot add session_id - form or sessionId missing', {
+                form: !!form,
+                sessionId: sessionId
+            });
         }
     }
 
@@ -605,7 +619,7 @@ class QuizTimer {
         const timerContainer = document.getElementById('quiz-timer-container');
         if (timerContainer) {
             timerContainer.classList.remove('hidden');
-            this.updateDisplay(); // Show initial time
+            this.updateDisplay();
         }
     }
 
@@ -618,7 +632,36 @@ class QuizTimer {
 
     showError(message) {
         console.error('Timer Error:', message);
-        // You can add a visual error message here if needed
+        alert(`Timer Error: ${message}`);
+    }
+
+    updateDisplay() {
+        const minutes = Math.floor(this.remainingSeconds / 60);
+        const seconds = this.remainingSeconds % 60;
+        const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = timeString;
+        }
+
+        const progressBar = document.getElementById('timer-progress');
+        if (progressBar && this.totalSeconds > 0) {
+            const progressPercent = ((this.totalSeconds - this.remainingSeconds) / this.totalSeconds) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+        }
+    }
+
+    showWarning() {
+        if (this.warningShown) return;
+
+        this.warningShown = true;
+        console.log('⚠️ Showing timer warning');
+
+        const warningElement = document.getElementById('timer-warning');
+        if (warningElement) {
+            warningElement.classList.remove('hidden');
+        }
     }
 
     startTimer() {
@@ -633,7 +676,6 @@ class QuizTimer {
             this.remainingSeconds--;
             this.updateDisplay();
 
-            // Show warning if configured
             if (this.settings.show_warning && !this.warningShown) {
                 const warningSeconds = this.settings.warning_time_seconds || 300;
                 if (this.remainingSeconds <= warningSeconds && this.remainingSeconds > 0) {
@@ -648,115 +690,33 @@ class QuizTimer {
         }, 1000);
     }
 
-    updateDisplay() {
-        const minutes = Math.floor(this.remainingSeconds / 60);
-        const seconds = this.remainingSeconds % 60;
-        const displayTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-        const timerDisplay = document.getElementById('timer-display');
-        if (timerDisplay) {
-            timerDisplay.textContent = displayTime;
-        }
-
-        // Update progress bar
-        const progressFill = document.getElementById('timer-progress-fill');
-        if (progressFill && this.totalSeconds > 0) {
-            const percentage = Math.max(0, (this.remainingSeconds / this.totalSeconds) * 100);
-            progressFill.style.width = `${percentage}%`;
-
-            // Change colors based on remaining time
-            if (percentage <= 25) {
-                progressFill.style.background = 'linear-gradient(90deg, #F44336, #E91E63)';
-                if (timerDisplay) timerDisplay.className = 'timer-display text-red-400';
-            } else if (percentage <= 50) {
-                progressFill.style.background = 'linear-gradient(90deg, #FF9800, #FFC107)';
-                if (timerDisplay) timerDisplay.className = 'timer-display text-orange-400';
-            } else {
-                progressFill.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
-                if (timerDisplay) timerDisplay.className = 'timer-display text-white';
-            }
-        }
-    }
-
-    showWarning() {
-        this.warningShown = true;
-        console.log('⚠️ Showing timer warning');
-
-        const warningElement = document.getElementById('timer-warning');
-        if (warningElement) {
-            const warningMinutes = Math.ceil(this.remainingSeconds / 60);
-            const warningTimeElement = document.getElementById('warning-time');
-            if (warningTimeElement) {
-                warningTimeElement.textContent = `${warningMinutes} minute${warningMinutes > 1 ? 's' : ''}`;
-            }
-            warningElement.classList.remove('hidden');
-
-            // Auto-hide warning after 10 seconds
-            setTimeout(() => {
-                warningElement.classList.add('hidden');
-            }, 10000);
-        }
-    }
-
-    handleTimeout() {
-        console.log('🚫 Handling timer expiration...');
+    async handleTimeout() {
         this.stop();
 
-        // Show timeout alert
         const timeoutAlert = document.getElementById('timeout-alert');
         if (timeoutAlert) {
             timeoutAlert.classList.remove('hidden');
         }
 
-        // Disable form inputs
-        const form = document.getElementById('quiz_form');
-        if (form) {
-            const inputs = form.querySelectorAll('input:not([type="hidden"]), button');
-            inputs.forEach(input => input.disabled = true);
-        }
-
-        // Auto-submit if enabled
-        if (this.settings.auto_submit !== false) {
-            setTimeout(() => {
-                this.autoSubmitQuiz();
-            }, 3000);
-        }
+        await this.autoSubmitQuiz();
     }
 
     async autoSubmitQuiz() {
         try {
-            console.log('🔄 Auto-submitting quiz...');
+            console.log('🔄 Auto-submitting quiz due to timeout...');
 
             const form = document.getElementById('quiz_form');
             if (!form) {
-                console.error('❌ Quiz form not found for auto-submission');
-                return;
+                throw new Error('Quiz form not found');
             }
-
-            // Show loading
-            document.getElementById('loading')?.classList.remove('hidden');
-            document.getElementById('selected_quiz')?.classList.add('hidden');
 
             const formData = new FormData(form);
 
-            // Ensure session_id is present
-            if (this.sessionId) {
+            if (!formData.get('session_id') && this.sessionId) {
                 formData.set('session_id', this.sessionId);
-            } else {
-                // Generate a fallback session ID
-                const lessonId = document.getElementById('lesson_id')?.value;
-                const userId = document.querySelector('input[name="user_id"]')?.value;
-                const timestamp = Date.now();
-                const sessionId = `timeout_${lessonId}_${userId}_${timestamp}`;
-                formData.set('session_id', sessionId);
-                console.log('Generated fallback session ID:', sessionId);
             }
 
-            // Add timeout submission indicators
-            formData.set('timeout_submission', 'true');
-
-            // Log what we're sending
-            console.log('Auto-submitting with data:', {
+            console.log('📊 Auto-submit form data:', {
                 session_id: formData.get('session_id'),
                 user_id: formData.get('user_id'),
                 lesson_id: formData.get('lesson_id'),
@@ -796,7 +756,6 @@ class QuizTimer {
             console.error('💥 Auto-submit error:', error);
             alert(`Auto-submit failed: ${error.message}\n\nPage will reload for manual submission.`);
 
-            // Reload page after 3 seconds to allow manual submission
             setTimeout(() => {
                 window.location.reload();
             }, 3000);
@@ -823,12 +782,10 @@ function nextStep() {
         document.getElementById('step2').classList.add('active');
         currentStep = 2;
 
-        // Debug the form after it becomes visible
         setTimeout(() => {
             debugFormStructure();
         }, 500);
 
-        // Start timer with longer delay to ensure everything is ready
         setTimeout(() => {
             console.log('📋 Step 2 is now active, starting timer...');
             startQuizTimer();
@@ -838,7 +795,6 @@ function nextStep() {
 
 function prevStep() {
     if (currentStep === 2) {
-        // Stop the timer when going back
         if (quizTimer) {
             console.log('🛑 Stopping timer due to step navigation');
             quizTimer.stop();
@@ -849,7 +805,6 @@ function prevStep() {
         document.getElementById('step1').classList.add('active');
         currentStep = 1;
 
-        // Reset alerts
         document.getElementById('timer-warning')?.classList.add('hidden');
         document.getElementById('timeout-alert')?.classList.add('hidden');
         document.getElementById('quiz-timer-container')?.classList.add('hidden');
@@ -872,18 +827,15 @@ function startQuizTimer() {
         return;
     }
 
-    // Stop any existing timer
     if (quizTimer) {
         console.log('🛑 Stopping existing timer');
         quizTimer.stop();
     }
 
-    // Create and initialize new timer
     quizTimer = new QuizTimer();
     quizTimer.initialize(lessonId, userId);
 }
 
-// Debug function
 function debugFormStructure() {
     console.log('=== FORM DEBUG ===');
 
@@ -908,25 +860,10 @@ function debugFormStructure() {
         lesson_id: lessonIdInput ? lessonIdInput.value : 'NOT FOUND',
         user_id: userIdInput ? userIdInput.value : 'NOT FOUND'
     });
+
+    console.log('=== END FORM DEBUG ===');
 }
 
-// Enhanced radio button interaction
-function setupQuizInteractions() {
-    const radioInputs = document.querySelectorAll('input[type="radio"]');
-
-    radioInputs.forEach(radio => {
-        radio.addEventListener('change', function() {
-            const sameName = document.querySelectorAll(`input[name="${this.name}"]`);
-            sameName.forEach(r => {
-                r.closest('.quiz-option')?.classList.remove('selected');
-            });
-
-            this.closest('.quiz-option')?.classList.add('selected');
-        });
-    });
-}
-
-// FIXED Manual form submission with session support
 function setupFormSubmission() {
     const form = document.getElementById('quiz_form');
     if (!form) return;
@@ -934,53 +871,20 @@ function setupFormSubmission() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        console.log('📝 Manual quiz submission started');
+        console.log('📤 Manual quiz submission started...');
 
-        // Stop timer
+        document.getElementById('loading')?.classList.remove('hidden');
+        document.getElementById('selected_quiz')?.classList.add('hidden');
+
         if (quizTimer) {
             quizTimer.stop();
         }
 
-        // Show loading
-        document.getElementById('loading')?.classList.remove('hidden');
-        document.getElementById('selected_quiz')?.classList.add('hidden');
-
         try {
-            const formData = new FormData(this);
+            const formData = new FormData(form);
 
-            // Ensure session_id is present for manual submission
-            if (quizTimer && quizTimer.sessionId) {
-                formData.set('session_id', quizTimer.sessionId);
-                console.log('Using timer session_id:', quizTimer.sessionId);
-            } else {
-                // Generate session ID if we don't have one
-                const lessonId = document.getElementById('lesson_id')?.value;
-                const userId = document.querySelector('input[name="user_id"]')?.value;
-                const timestamp = Date.now();
-                const sessionId = `manual_${lessonId}_${userId}_${timestamp}`;
-                formData.set('session_id', sessionId);
-                console.log('Generated session_id for manual submission:', sessionId);
-            }
-
-            // Debug form data
-            console.log('Submitting form with data:', {
-                session_id: formData.get('session_id'),
-                user_id: formData.get('user_id'),
-                lesson_id: formData.get('lesson_id'),
-                module_id: formData.get('module_id')
-            });
-
-            // Check if we have any quiz answers
-            let hasAnswers = false;
-            for (let [key, value] of formData.entries()) {
-                if (key.startsWith('options_')) {
-                    hasAnswers = true;
-                    break;
-                }
-            }
-
-            if (!hasAnswers) {
-                alert('Please answer at least one question before submitting.');
+            if (!formData.get('session_id')) {
+                console.error('❌ Missing session_id in form');
                 document.getElementById('loading')?.classList.add('hidden');
                 document.getElementById('selected_quiz')?.classList.remove('hidden');
                 return;
@@ -1016,11 +920,9 @@ function setupFormSubmission() {
             console.error('💥 Quiz submission error:', error);
             alert('Failed to submit quiz. Please try again.');
 
-            // Re-enable form
             document.getElementById('loading')?.classList.add('hidden');
             document.getElementById('selected_quiz')?.classList.remove('hidden');
 
-            // Restart timer if it was running and there's time left
             if (quizTimer && quizTimer.remainingSeconds > 0) {
                 quizTimer.startTimer();
             }
@@ -1030,7 +932,6 @@ function setupFormSubmission() {
 
 // Initialize everything
 document.addEventListener('DOMContentLoaded', function() {
-    setupQuizInteractions();
     setupFormSubmission();
 
     document.getElementById('step1')?.classList.add('active');

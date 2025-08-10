@@ -9,6 +9,8 @@ class Quizz extends Model
 {
     use HasFactory;
 
+    protected $table = 'quizzs';
+
     protected $fillable = [
         "lesson_id",
         "question",
@@ -18,7 +20,7 @@ class Quizz extends Model
         "answer_option_b",
         "answer_option_c",
         "answer_option_d",
-        "question_duration_seconds" // Renamed from duration for clarity
+        "question_duration_seconds"
     ];
 
     protected $casts = [
