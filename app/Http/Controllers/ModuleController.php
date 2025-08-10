@@ -175,66 +175,52 @@ class ModuleController extends Controller
             // Process each answer
             foreach ($quizAnswers as $quizId => $selectedOption) {
                 try {
-                    // FIXED: Using Quizz model with two 'z's
-                    $quiz = Quizz::find($quizId);
+                    // Using Quizz model (with two 'z's)
+                    $quiz = \App\Models\Quizz::find($quizId);
 
                     if (!$quiz) {
-                        Log::warning('Quiz not found', ['quiz_id' => $quizId]);
+                        Log::warning("Quiz not found: {$quizId}");
                         continue;
                     }
 
-                    // Check if answered
-                    $wasAnswered = !empty($selectedOption) && $selectedOption !== 'UNANSWERED';
+                    $wasAnswered = !empty($selectedOption);
+                    $isCorrect = $wasAnswered && ($quiz->correct_answer === $selectedOption);
 
                     if ($wasAnswered) {
                         $answeredQuestions++;
-                    } else {
-                        $unansweredQuestions++;
                     }
-
-                    // Check if correct
-                    $isCorrect = $wasAnswered && ($selectedOption === $quiz->correct_answer);
-
                     if ($isCorrect) {
                         $correctAnswers++;
                     }
 
-                    // Create attempt answer record
-                    AttemptAnswer::create([
-                        'user_id' => $userId,
-                        'lesson_id' => $lessonId,
-                        'module_id' => $moduleId,
-                        'quiz_id' => $quizId,
-                        'user_answer' => $wasAnswered ? $selectedOption : null,
-                        'correct_answer' => $quiz->correct_answer,
-                        'auto_mark' => $isCorrect,
-                        'was_answered' => $wasAnswered,
-                        'session_id' => $sessionId,
-                        'attempt_status' => 'completed',
-                        'attempt_started_at' => now(),
-                        'attempt_completed_at' => now(),
-                        'session_started_at' => now(),
-                        'session_completed_at' => now(),
-                        'session_status' => 'completed'
-                    ]);
-
-                    Log::info('Processed answer', [
-                        'quiz_id' => $quizId,
-                        'selected' => $selectedOption,
-                        'correct' => $quiz->correct_answer,
-                        'is_correct' => $isCorrect
-                    ]);
+                    // Save attempt answer
+                    AttemptAnswer::updateOrCreate(
+                        [
+                            'user_id' => $userId,
+                            'quiz_id' => $quizId,
+                            'session_id' => $sessionId,
+                        ],
+                        [
+                            'lesson_id' => $lessonId,
+                            'module_id' => $moduleId,
+                            'selected_answer' => $selectedOption ?: null,
+                            'correct_answer' => $quiz->correct_answer,
+                            'was_answered' => $wasAnswered,
+                            'auto_mark' => $isCorrect,
+                            'marked_at' => now(),
+                            'session_started_at' => now(), // You might want to get this from existing data
+                            'session_completed_at' => now(), // IMPORTANT: Mark session as completed
+                            'session_status' => 'completed', // IMPORTANT: Set session status
+                        ]
+                    );
 
                 } catch (\Exception $e) {
-                    Log::error('Error processing quiz answer', [
-                        'quiz_id' => $quizId,
-                        'error' => $e->getMessage()
-                    ]);
+                    Log::error("Error processing quiz {$quizId}: " . $e->getMessage());
                     continue;
                 }
             }
 
-            // Calculate pass percentage
+            $unansweredQuestions = $totalQuestions - $answeredQuestions;
             $passPercentage = $totalQuestions > 0
                 ? round(($correctAnswers / $totalQuestions) * 100, 2)
                 : 0;
@@ -265,6 +251,9 @@ class ModuleController extends Controller
                     ]);
                 }
             }
+
+            // IMPORTANT FIX: Call updateModuleProgress after quiz completion
+            $this->updateModuleProgress($userId, $moduleId);
 
             Log::info('Quiz completed successfully', [
                 'session_id' => $sessionId,
@@ -302,19 +291,18 @@ class ModuleController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Quiz marking error: ' . $e->getMessage(), [
-                'session_id' => $request->session_id ?? null,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'session_id' => $request->session_id ?? 'unknown',
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to complete quiz',
+                'message' => 'Quiz marking failed',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
+
 
     /**
      * NEW: Abandon a quiz session - call this when user leaves without completing
@@ -417,10 +405,11 @@ class ModuleController extends Controller
                 ->where('lesson_completed', true)
                 ->count();
 
-            // UPDATED: Count passed quizzes using session-based approach
+            // Count passed quizzes using session-based approach
             $passedQuizzes = AttemptAnswer::where('user_id', $userId)
                 ->where('module_id', $moduleId)
                 ->whereNotNull('session_id')
+                ->where('session_status', 'completed') // IMPORTANT: Only count completed sessions
                 ->get()
                 ->groupBy('session_id')
                 ->filter(function ($sessionAttempts) {
@@ -441,7 +430,8 @@ class ModuleController extends Controller
             // Calculate overall progress
             $totalActivities = $totalLessons + $totalQuizzes;
             $completedActivities = $completedLessons + $passedQuizzes;
-            $overallProgress = $totalActivities > 0 ? round(($completedActivities / $totalActivities) * 100, 2) : 0;
+            $overallProgress = $totalActivities > 0
+                ? round(($completedActivities / $totalActivities) * 100, 2) : 0;
 
             // Determine status
             $status = 'in_progress';
@@ -474,7 +464,8 @@ class ModuleController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to update module progress: ' . $e->getMessage(), [
                 'user_id' => $userId,
-                'module_id' => $moduleId
+                'module_id' => $moduleId,
+                'trace' => $e->getTraceAsString()
             ]);
         }
     }

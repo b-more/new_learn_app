@@ -32,6 +32,13 @@ use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 use Illuminate\Database\Eloquent\Collection;
 use Filament\Notifications\Notification;
 
+// NEW IMPORTS FOR DASHBOARD INTEGRATION
+use Filament\Actions\Action;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\IconEntry;
+
 //Audit Trails
 function checkCreateAuthTrailsPermission(): bool
 {
@@ -420,6 +427,115 @@ class UserResource extends Resource
             ]);
     }
 
+    // NEW: Define the infolist for viewing user details
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Section::make('User Information')
+                    ->schema([
+                        TextEntry::make('name')
+                            ->label('Full Name')
+                            ->size(TextEntry\TextEntrySize::Large)
+                            ->weight('bold'),
+                        TextEntry::make('email')
+                            ->label('Email Address')
+                            ->copyable()
+                            ->icon('heroicon-o-envelope'),
+                        TextEntry::make('role.name')
+                            ->label('Role')
+                            ->badge()
+                            ->color('info'),
+                        TextEntry::make('branch.name')
+                            ->label('Branch')
+                            ->badge()
+                            ->color('success'),
+                    ])
+                    ->columns(2),
+
+                Section::make('Module Assignment & Progress')
+                    ->schema([
+                        TextEntry::make('modules.title')
+                            ->label('Assigned Modules')
+                            ->badge()
+                            ->color('primary')
+                            ->separator(','),
+                        TextEntry::make('overall_progress')
+                            ->label('Overall Progress')
+                            ->getStateUsing(function ($record) {
+                                $totalModules = $record->modules()->count();
+                                if ($totalModules == 0) return '0% (No modules assigned)';
+
+                                $completedModules = UserModuleProgress::where('user_id', $record->id)
+                                    ->where('status', 'completed')
+                                    ->count();
+
+                                $percentage = round(($completedModules / $totalModules) * 100, 1);
+                                return $percentage . '% (' . $completedModules . '/' . $totalModules . ' modules completed)';
+                            })
+                            ->badge()
+                            ->color(fn (string $state): string => match (true) {
+                                str_contains($state, '100%') => 'success',
+                                (float) str_replace('%', '', explode(' ', $state)[0]) >= 70 => 'warning',
+                                (float) str_replace('%', '', explode(' ', $state)[0]) > 0 => 'info',
+                                default => 'gray',
+                            }),
+                    ])
+                    ->columns(1),
+
+                Section::make('Performance & Activity')
+                    ->schema([
+                        TextEntry::make('quiz_stats')
+                            ->label('Quiz Statistics')
+                            ->getStateUsing(function ($record) {
+                                $totalSessions = \App\Models\AttemptAnswer::where('user_id', $record->id)
+                                    ->whereNotNull('session_id')
+                                    ->where('session_status', 'completed')
+                                    ->distinct('session_id')
+                                    ->count();
+                                $totalAttempts = \App\Models\AttemptAnswer::where('user_id', $record->id)->count();
+
+                                return "{$totalSessions} sessions • {$totalAttempts} total attempts";
+                            })
+                            ->icon('heroicon-o-chart-bar'),
+                        TextEntry::make('last_activity')
+                            ->label('Last Activity')
+                            ->getStateUsing(function ($record) {
+                                $lastActivity = \App\Models\AuditTrail::where('user_id', $record->id)
+                                    ->orderBy('activity_timestamp', 'desc')
+                                    ->first();
+
+                                return $lastActivity ? $lastActivity->activity_timestamp->diffForHumans() : 'No activity recorded';
+                            })
+                            ->badge()
+                            ->color(function ($record) {
+                                $lastActivity = \App\Models\AuditTrail::where('user_id', $record->id)
+                                    ->orderBy('activity_timestamp', 'desc')
+                                    ->first();
+
+                                if (!$lastActivity) return 'gray';
+
+                                $daysSince = $lastActivity->activity_timestamp->diffInDays(now());
+                                return match (true) {
+                                    $daysSince <= 1 => 'success',
+                                    $daysSince <= 7 => 'warning',
+                                    default => 'danger'
+                                };
+                            })
+                            ->icon('heroicon-o-clock'),
+                        TextEntry::make('created_at')
+                            ->label('Member Since')
+                            ->dateTime('M j, Y')
+                            ->icon('heroicon-o-user-plus'),
+                        TextEntry::make('updated_at')
+                            ->label('Last Updated')
+                            ->dateTime('M j, Y g:i A')
+                            ->icon('heroicon-o-pencil-square'),
+                    ])
+                    ->columns(2),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -584,16 +700,41 @@ class UserResource extends Resource
                     })
             ])
             ->actions([
+                // NEW: View action
+                Tables\Actions\ViewAction::make()
+                    ->color('info'),
+
+                // Existing edit action
                 Tables\Actions\EditAction::make(),
 
-                // ADD PROGRESS VIEW ACTION
-                Tables\Actions\Action::make('viewProgress')
-                    ->label('View Progress')
+                // NEW: Performance Dashboard Action
+                Tables\Actions\Action::make('viewDashboard')
+                    ->label('Performance Dashboard')
                     ->icon('heroicon-o-chart-bar')
-                    ->color('info')
-                    //->url(fn ($record): string => route('filament.admin.resources.users.progress', $record))
+                    ->color('success')
+                    ->url(fn ($record): string => route('admin.user-dashboard', ['userId' => $record->id]))
+                    ->openUrlInNewTab()
                     ->visible(fn ($record) => $record->modules()->count() > 0)
-                    ->openUrlInNewTab(),
+                    ->tooltip('View comprehensive performance analytics'),
+
+                // NEW: Download PDF Action
+                Tables\Actions\Action::make('downloadPDF')
+                    ->label('Download Report')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('warning')
+                    ->url(fn ($record): string => route('admin.user-dashboard.pdf', ['userId' => $record->id]))
+                    ->openUrlInNewTab()
+                    ->visible(fn ($record) => $record->modules()->count() > 0)
+                    ->tooltip('Download performance report as PDF'),
+
+                // Existing progress view action (keep if you want it)
+                Tables\Actions\Action::make('viewProgress')
+                    ->label('Module Progress')
+                    ->icon('heroicon-o-academic-cap')
+                    ->color('info')
+                    ->url(fn ($record): string => '/admin/users/' . $record->id)
+                    ->visible(fn ($record) => $record->modules()->count() > 0)
+                    ->tooltip('View detailed module progress'),
             ])
             ->bulkActions([
     Tables\Actions\BulkActionGroup::make([
@@ -847,11 +988,13 @@ class UserResource extends Resource
         ];
     }
 
+    // UPDATED: Add view page to the pages array
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListUsers::route('/'),
             'create' => Pages\CreateUser::route('/create'),
+            'view' => Pages\ViewUser::route('/{record}'),  // NEW: Added view page
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
     }
