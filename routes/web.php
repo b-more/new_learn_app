@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Response;
 use App\Http\Controllers\QuizAttemptController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\FileUploadController;
@@ -128,3 +129,31 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/admin/user-dashboard-data/{userId}', [AdminUserDashboardController::class, 'getDashboardDataAPI'])
         ->name('admin.user-dashboard.api');
 });
+
+Route::get('/storage/{path}', function ($path) {
+    // Decode the path to handle subdirectories like thumbnail/filename.png
+    $path = urldecode($path);
+
+    // Security check - prevent directory traversal attacks
+    if (str_contains($path, '..') || str_contains($path, './')) {
+        abort(403, 'Invalid path');
+    }
+
+    // Build full path to file
+    $fullPath = storage_path('app/public/' . $path);
+
+    // Check if file exists
+    if (!file_exists($fullPath)) {
+        abort(404, 'File not found');
+    }
+
+    // Get MIME type
+    $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
+
+    // Return file with proper headers
+    return Response::make(file_get_contents($fullPath), 200, [
+        'Content-Type' => $mimeType,
+        'Content-Length' => filesize($fullPath),
+        'Cache-Control' => 'public, max-age=86400', // 1 day cache
+    ]);
+})->where('path', '.*'); // Allow any path including subdirectories

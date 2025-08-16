@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+    learn_mysql_db:
+        image: mysql:8.0
+        container_name: learn-mysql-518
+        environment:
+            MYSQL_ROOT_PASSWORD: learn_root_518
+            MYSQL_DATABASE: learn_app_518
+            MYSQL_USER: learn_user
+            MYSQL_PASSWORD: learn_pass_518
+        ports:
+            - "3310:3306"
+        volumes:
+            - learn_mysql_data:/var/lib/mysql
+        networks:
+            - learn_network
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+            timeout: 20s
+            retries: 10
+
+    learn_phpmyadmin:
+        image: phpmyadmin:latest
+        container_name: learn-phpmyadmin-518
+        ports:
+            - "9518:80"
+        environment:
+            - PMA_ARBITRARY=1
+            - PMA_HOST=learn_mysql_db
+            - PMA_USER=learn_user
+            - PMA_PASSWORD=learn_pass_518
+        depends_on:
+            - learn_mysql_db
+        networks:
+            - learn_network
+        restart: unless-stopped
+
+    learn_web_app:
+        container_name: learn-app-518
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - ./storage:/var/www/html/storage
+            - ./bootstrap/cache:/var/www/html/bootstrap/cache
+            - ./.env:/var/www/html/.env
+        ports:
+            - "518:80"
+        environment:
+            - APP_ENV=production
+            - APP_DEBUG=false
+            - APP_URL=http://102.23.120.249:518
+            - DB_CONNECTION=mysql
+            - DB_HOST=learn_mysql_db
+            - DB_PORT=3306
+            - DB_DATABASE=learn_app_518
+            - DB_USERNAME=learn_user
+            - DB_PASSWORD=learn_pass_518
+            - CACHE_DRIVER=file
+            - SESSION_DRIVER=file
+            - CACHE_STORE=file
+            - QUEUE_CONNECTION=database
+        depends_on:
+            learn_mysql_db:
+                condition: service_healthy
+        networks:
+            - learn_network
+        restart: unless-stopped
+
+volumes:
+    learn_mysql_data:
+
+networks:
+    learn_network:
+        driver: bridge
