@@ -20,8 +20,6 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
     zip \
-    nodejs \
-    npm \
     libicu-dev \
     default-mysql-client \
     && docker-php-ext-configure intl \
@@ -60,9 +58,6 @@ RUN chown -R www-data:www-data /var/www/html \
 # Install Composer dependencies
 RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# Install Node dependencies if package.json exists
-RUN if [ -f package.json ]; then npm install && npm run build; fi
-
 # Copy entrypoint script
 COPY <<'EOF' /usr/local/bin/docker-entrypoint.sh
 #!/bin/bash
@@ -70,11 +65,18 @@ set -e
 
 # Wait for database to be ready
 echo "Waiting for database..."
-until mysql -h"$DB_HOST" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" &> /dev/null; do
-    echo "Database is unavailable - sleeping"
+counter=0
+until mysql -h"$DB_HOST" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" &> /dev/null || [ $counter -eq 30 ]; do
+    echo "Database is unavailable - sleeping (attempt $counter/30)"
     sleep 5
+    counter=$((counter+1))
 done
-echo "Database is ready!"
+
+if [ $counter -eq 30 ]; then
+    echo "Database connection timeout after 150 seconds"
+else
+    echo "Database is ready!"
+fi
 
 # Run migrations and seeders
 php artisan migrate --force

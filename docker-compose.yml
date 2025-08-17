@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
     learn_mysql_db:
-        image: mysql:8.0
+        image: mysql:9.0
         container_name: learn-mysql-518
         environment:
             MYSQL_ROOT_PASSWORD: learn_root_518
@@ -10,16 +10,12 @@ services:
             MYSQL_USER: learn_user
             MYSQL_PASSWORD: learn_pass_518
         ports:
-            - "3310:3306"
+            - "3311:3306"
         volumes:
             - learn_mysql_data:/var/lib/mysql
         networks:
             - learn_network
         restart: unless-stopped
-        healthcheck:
-            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-            timeout: 20s
-            retries: 10
 
     learn_phpmyadmin:
         image: phpmyadmin:latest
@@ -63,8 +59,7 @@ services:
             - CACHE_STORE=file
             - QUEUE_CONNECTION=database
         depends_on:
-            learn_mysql_db:
-                condition: service_healthy
+            - learn_mysql_db
         networks:
             - learn_network
         restart: unless-stopped
